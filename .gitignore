@@ -3,3 +3,4 @@ diff_env/
 __pycache__
 images/
 log/
+openai_models

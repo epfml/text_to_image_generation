@@ -155,14 +155,16 @@ class TensorBoardOutputFormat(KVWriter):
     """
 
     def __init__(self, dir):
-        os.makedirs(dir, exist_ok=True)
-        self.dir = dir
-        self.writer = SummaryWriter("log/runs/")
+        runs_dir = f"{dir}/runs/"
+        os.makedirs(runs_dir, exist_ok=True)
+        self.writer = SummaryWriter(runs_dir)
+        self.step = 0
 
     def writekvs(self, kvs):
         for k, v in kvs.items():
-            self.writer.add_scalar(tag=k, scalar_value=float(v))
+            self.writer.add_scalar(tag=k, scalar_value=float(v), global_step=self.step)
         self.writer.flush()
+        self.step += 1
 
     def close(self):
         if self.writer:
@@ -181,7 +183,7 @@ def make_output_format(format, ev_dir, log_suffix=""):
     elif format == "csv":
         return CSVOutputFormat(osp.join(ev_dir, "progress%s.csv" % log_suffix))
     elif format == "tensorboard":
-        return TensorBoardOutputFormat(osp.join(ev_dir, "tb%s" % log_suffix))
+        return TensorBoardOutputFormat(ev_dir)
     else:
         raise ValueError("Unknown format specified: %s" % (format,))
 
