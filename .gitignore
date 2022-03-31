@@ -4,3 +4,4 @@ __pycache__
 images/
 log/
 openai_models
+robin_scripts/playground.py
