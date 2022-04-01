@@ -5,8 +5,6 @@ from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 from .unet import SuperResModel, UNetModel, EncoderUNetModel
 
-NUM_CLASSES = 100 # Number of classes: TO KEEP IN MIND
-
 
 def diffusion_defaults():
     """
@@ -37,6 +35,7 @@ def classifier_defaults():
         classifier_use_scale_shift_norm=True,  # False
         classifier_resblock_updown=True,  # False
         classifier_pool="attention",
+        num_classes=None
     )
 
 
@@ -60,6 +59,7 @@ def model_and_diffusion_defaults():
         resblock_updown=False,
         use_fp16=False,
         use_new_attention_order=False,
+        num_classes=None
     )
     res.update(diffusion_defaults())
     return res
@@ -95,6 +95,7 @@ def create_model_and_diffusion(
     resblock_updown,
     use_fp16,
     use_new_attention_order,
+    num_classes
 ):
     model = create_model(
         image_size,
@@ -113,6 +114,7 @@ def create_model_and_diffusion(
         resblock_updown=resblock_updown,
         use_fp16=use_fp16,
         use_new_attention_order=use_new_attention_order,
+        num_classes=num_classes
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
@@ -144,7 +146,12 @@ def create_model(
     resblock_updown=False,
     use_fp16=False,
     use_new_attention_order=False,
+    num_classes=None
 ):
+
+    if class_cond and not num_classes:
+        raise Exception("num_classes should be specified if class_cond is True.")
+    
     if channel_mult == "":
         if image_size == 512:
             channel_mult = (0.5, 1, 1, 2, 2, 4, 4)
@@ -174,7 +181,7 @@ def create_model(
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,
         channel_mult=channel_mult,
-        num_classes=(NUM_CLASSES if class_cond else None),
+        num_classes=(int(num_classes) if class_cond else None),
         use_checkpoint=use_checkpoint,
         use_fp16=use_fp16,
         num_heads=num_heads,
@@ -203,6 +210,7 @@ def create_classifier_and_diffusion(
     predict_xstart,
     rescale_timesteps,
     rescale_learned_sigmas,
+    num_classes
 ):
     classifier = create_classifier(
         image_size,
@@ -213,6 +221,7 @@ def create_classifier_and_diffusion(
         classifier_use_scale_shift_norm,
         classifier_resblock_updown,
         classifier_pool,
+        num_classes
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
@@ -236,6 +245,7 @@ def create_classifier(
     classifier_use_scale_shift_norm,
     classifier_resblock_updown,
     classifier_pool,
+    num_classes
 ):
     if image_size == 512:
         channel_mult = (0.5, 1, 1, 2, 2, 4, 4)
@@ -246,7 +256,7 @@ def create_classifier(
     elif image_size == 64:
         channel_mult = (1, 2, 3, 4)
     elif image_size == 32:
-            channel_mult = (1, 2, 3, 4)
+        channel_mult = (1, 2, 3, 4)
     else:
         raise ValueError(f"unsupported image size: {image_size}")
 
@@ -258,7 +268,7 @@ def create_classifier(
         image_size=image_size,
         in_channels=3,
         model_channels=classifier_width,
-        out_channels=1000,
+        out_channels=int(num_classes),
         num_res_blocks=classifier_depth,
         attention_resolutions=tuple(attention_ds),
         channel_mult=channel_mult,
@@ -304,6 +314,7 @@ def sr_create_model_and_diffusion(
     use_scale_shift_norm,
     resblock_updown,
     use_fp16,
+    num_classes
 ):
     model = sr_create_model(
         large_size,
@@ -321,6 +332,7 @@ def sr_create_model_and_diffusion(
         dropout=dropout,
         resblock_updown=resblock_updown,
         use_fp16=use_fp16,
+        num_classes=int(num_classes)
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
@@ -351,6 +363,7 @@ def sr_create_model(
     dropout,
     resblock_updown,
     use_fp16,
+    num_classes
 ):
     _ = small_size  # hack to prevent unused variable
 
@@ -376,7 +389,7 @@ def sr_create_model(
         attention_resolutions=tuple(attention_ds),
         dropout=dropout,
         channel_mult=channel_mult,
-        num_classes=(NUM_CLASSES if class_cond else None),
+        num_classes=(int(num_classes) if class_cond else None),
         use_checkpoint=use_checkpoint,
         num_heads=num_heads,
         num_head_channels=num_head_channels,

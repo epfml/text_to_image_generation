@@ -158,7 +158,7 @@ class TensorBoardOutputFormat(KVWriter):
         runs_dir = f"{dir}/runs/"
         os.makedirs(runs_dir, exist_ok=True)
         self.writer = SummaryWriter(runs_dir)
-        self.step = 0
+        self.step = 1
 
     def writekvs(self, kvs):
         for k, v in kvs.items():
