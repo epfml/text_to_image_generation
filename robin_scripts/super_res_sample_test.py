@@ -5,6 +5,7 @@ of samples from a regular model from image_sample.py.
 
 import argparse
 import os
+import sys
 import setGPU
 
 import blobfile as bf
