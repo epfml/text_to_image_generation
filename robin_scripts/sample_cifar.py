@@ -17,7 +17,6 @@ from PIL import Image
 sys.path.append("..")
 from guided_diffusion import dist_util, logger
 from guided_diffusion.script_util import (
-    NUM_CLASSES,
     model_and_diffusion_defaults,
     classifier_defaults,
     create_model_and_diffusion,

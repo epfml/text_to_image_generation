@@ -1,107 +1,124 @@
 # Script to train and sample from a model on cifar100
-: '
-python train_dif_cifar.py \
-    --data_dir
-    --schedule_sampler
-    --lr
-    --weight_decay
-    --lr_anneal_steps
-    --batch_size
-    --microbatch
-    --ema_rate
-    --log_interval
-    --save_interval
-    --resume_checkpoint
-    --use_fp16
-    --fp16_scale_growth
-    --model_name
-    --image_size
-    --num_channels
-    --num_res_blocks
-    --num_heads
-    --num_heads_upsample
-    --num_head_channels
-    --attention_resolutions
-    --channel_mult
-    --dropout
-    --class_cond
-    --use_checkpoint
-    --use_scale_shift_norm
-    --resblock_updown
-    --use_new_attention_order
-    --num_classes
-    --learn_sigma
-    --diffusion_steps
-    --noise_schedule
-    --timestep_respacing
-    --use_kl
-    --predict_xstart
-    --rescale_timesteps
-    --rescale_learned_sigmas
-'
-## OLD
 
-# Train the diffusion model
+# Train diffusion model
 : '
 python train_dif_cifar.py \
-    --image_size 32 \
-    --num_channels 128 \
-    --num_res_blocks 3 \
-    --diffusion_steps 1000 \
-    --noise_schedule linear \
-    --lr 1e-4 \
-    --batch_size 64 \
-    --class_cond True \
-    --learn_sigma True \
-    --lr_anneal_steps 5000 \
-'
-
-: '
-python train_dif_cifar.py \
-    --image_size 32 \
-    --num_channels 128 \
-    --num_res_blocks 3 \
-    --diffusion_steps 1000 \
-    --noise_schedule cosine \
+    --schedule_sampler uniform \
     --lr 3e-4 \
-    --batch_size 64 \
-    --class_cond True \
-    --num_classes 100 \
-    --learn_sigma True \
-    --lr_anneal_steps 5000 \
-    --weight_decay 0.05 \
-    --use_fp16 True \
-    --model_name diffusion_cifar100_test_code \
-'
-
-
-# Train the classifier model
-python train_cla_cifar.py \
-    --image_size 32 \
-    --diffusion_steps 1000 \
-    --noise_schedule linear \
-    --lr 3e-4 \
+    --weight_decay 0 \
+    --lr_anneal_steps 15000 \
     --batch_size 128 \
-    --learn_sigma True \
-    --iterations 5000 \
-    --num_classes 100 \
-    --model_name classifier_cifar100_test \
-    
-
-# Sample
-: '
-python sample_cifar.py \
+    --microbatch -1 \
+    --ema_rate 0.9999 \
+    --log_interval 10 \
+    --save_interval 7500 \
+    --use_fp16 True \
+    --fp16_scale_growth 1e-3 \
+    --model_name diffusion_cifar100_linear_2 \
     --image_size 32 \
-    --diffusion_steps 1000 \
-    --num_res_blocks 3 \
-    --noise_schedule linear \
-    --batch_size 10 \
-    --num_samples 10 \
-    --learn_sigma True \
-    --class_cond True \
     --num_channels 128 \
-    --classfier_scale 1 \
-    --out_path ../images/apple \
-    --classifier_path ../log/classifier_cifar100/model004999.pt \
-    --model_path ../log/model005000.pt
+    --num_res_blocks 3 \
+    --num_heads -1 \
+    --num_heads_upsample -1 \
+    --num_head_channels 64 \
+    --attention_resolutions 16,8,4 \
+    --channel_mult 1,2,3,4 \
+    --dropout 0 \
+    --class_cond True \
+    --use_checkpoint False \
+    --use_scale_shift_norm True \
+    --resblock_updown True \
+    --use_new_attention_order False \
+    --num_classes 100 \
+    --learn_sigma True \
+    --diffusion_steps 1000 \
+    --noise_schedule linear \
+    --use_kl False \
+    --predict_xstart False \
+    --rescale_timesteps False \
+    --rescale_learned_sigmas False \
 '
+#    --data_dir \
+#    --resume_checkpoint \
+#    --timestep_respacing  \
+
+
+# Train classifier model
+: '
+python train_cla_cifar.py \
+    --noised True \
+    --iterations 50000 \
+    --lr 6e-4 \
+    --weight_decay 0.2 \
+    --anneal_lr False \
+    --batch_size 128 \
+    --microbatch -1 \
+    --schedule_sampler uniform \
+    --log_interval 10 \
+    --eval_interval 5 \
+    --save_interval 25000 \
+    --model_name classifier_cifar100_linear_fast \
+    --image_size 32 \
+    --classifier_use_fp16 False \
+    --classifier_width 128 \
+    --classifier_depth 4 \
+    --classifier_attention_resolutions 16,8,4 \
+    --classifier_use_scale_shift_norm True \
+    --classifier_resblock_updown True \
+    --classifier_pool attention \
+    --num_classes 100 \
+    --learn_sigma True \
+    --diffusion_steps 1000 \
+    --noise_schedule linear \
+    --use_kl False \
+    --predict_xstart False \
+    --rescale_timesteps False \
+    --rescale_learned_sigmas False \
+#    --data_dir 
+#    --val_data_dir
+#    --resume_checkpoint
+#    --timestep_respacing
+'
+
+# Sample from the model
+
+python sample_cifar.py \
+    --clip_denoised True \
+    --num_samples 10 \
+    --batch_size 10 \
+    --use_ddim False \
+    --model_path ../log/diffusion_cifar100/model015000.pt \
+    --classifier_path ../log/classifier_cifar100/model025000.pt \
+    --classifier_scale 1 \
+    --out_path ../images/cifar100/class_2 \
+    --image_size 32 \
+    --num_channels 128 \
+    --num_res_blocks 3 \
+    --num_heads -1 \
+    --num_heads_upsample -1 \
+    --num_head_channels 64 \
+    --attention_resolutions 16,8,4 \
+    --channel_mult 1,2,3,4 \
+    --dropout 0 \
+    --class_cond True \
+    --use_checkpoint False \
+    --use_scale_shift_norm True \
+    --resblock_updown True \
+    --use_fp16 True \
+    --use_new_attention_order False \
+    --num_classes 100 \
+    --learn_sigma True \
+    --diffusion_steps 1000 \
+    --noise_schedule linear \
+    --use_kl False \
+    --predict_xstart False \
+    --rescale_timesteps False \
+    --rescale_learned_sigmas False \
+    --classifier_use_fp16 False \
+    --classifier_width 128 \
+    --classifier_depth 4 \
+    --classifier_attention_resolutions 16,8,4 \
+    --classifier_use_scale_shift_norm True \
+    --classifier_resblock_updown True \
+    --classifier_pool attention \
+#    --timestep_respacing
