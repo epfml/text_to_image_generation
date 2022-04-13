@@ -84,7 +84,7 @@ def main():
                      transforms.Normalize(mean=[n/255.
                         for n in [129.3, 124.1, 112.4]], std=[n/255. for n in [68.2,  65.4,  70.4]])]
     trans = transforms.Compose(trans)
-    dataset = datasets.CIFAR100(root="../../mlodata1/roazbind/cifar_100", train=True, download=True, transform=trans)
+    dataset = datasets.CIFAR100(root="../../../../mlodata1/roazbind/cifar_100", train=True, download=True, transform=trans)
     
     len_dataset = int(len(dataset))
     len_train = int(abs(len_dataset * 0.8))
