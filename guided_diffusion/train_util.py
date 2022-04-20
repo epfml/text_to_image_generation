@@ -38,7 +38,8 @@ class TrainLoop:
         schedule_sampler=None,
         weight_decay=0.0,
         lr_anneal_steps=0,
-        model_name="model"
+        model_name="model",
+        emb_cond=False
     ):
         self.model = model
         self.diffusion = diffusion
@@ -60,6 +61,7 @@ class TrainLoop:
         self.weight_decay = weight_decay
         self.lr_anneal_steps = lr_anneal_steps
         self.model_name = model_name
+        self.emb_cond = emb_cond
 
         self.step = 0
         self.resume_step = 0
@@ -158,7 +160,9 @@ class TrainLoop:
             or self.step + self.resume_step < self.lr_anneal_steps
         ):
             batch, cond = next(self.data)
-            if not isinstance(cond, dict):
+            if self.emb_cond:
+                cond = {"img_emb": cond}
+            elif not isinstance(cond, dict):
                 cond = {"y": cond} # For cifar100
             self.run_step(batch, cond)
             if self.step % self.log_interval == 0:

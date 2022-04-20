@@ -422,6 +422,7 @@ class UNetModel(nn.Module):
     :param resblock_updown: use residual blocks for up/downsampling.
     :param use_new_attention_order: use a different attention pattern for potentially
                                     increased efficiency.
+    :param img_emb_dim: if image-embedding-conditional, size of the image embedding
     """
 
     def __init__(
@@ -445,6 +446,7 @@ class UNetModel(nn.Module):
         use_scale_shift_norm=False,
         resblock_updown=False,
         use_new_attention_order=False,
+        img_emb_dim=None
     ):
         super().__init__()
 
@@ -466,6 +468,7 @@ class UNetModel(nn.Module):
         self.num_heads = num_heads
         self.num_head_channels = num_head_channels
         self.num_heads_upsample = num_heads_upsample
+        self.img_emb_dim = img_emb_dim
 
         time_embed_dim = model_channels * 4
         self.time_embed = nn.Sequential(
@@ -477,6 +480,13 @@ class UNetModel(nn.Module):
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
 
+        elif self.img_emb_dim is not None:
+            self.img_emb_proj = nn.Sequential(
+                linear(img_emb_dim, time_embed_dim),
+                nn.SiLU(),
+                linear(time_embed_dim, time_embed_dim),
+            )
+        
         ch = input_ch = int(channel_mult[0] * model_channels)
         self.input_blocks = nn.ModuleList(
             [TimestepEmbedSequential(conv_nd(dims, in_channels, ch, 3, padding=1))]
@@ -631,13 +641,14 @@ class UNetModel(nn.Module):
         self.middle_block.apply(convert_module_to_f32)
         self.output_blocks.apply(convert_module_to_f32)
 
-    def forward(self, x, timesteps, y=None):
+    def forward(self, x, timesteps, y=None, img_emb=None):
         """
         Apply the model to an input batch.
 
         :param x: an [N x C x ...] Tensor of inputs.
         :param timesteps: a 1-D batch of timesteps.
         :param y: an [N] Tensor of labels, if class-conditional.
+        :param img_emb: an [N x img_emb_dim] Tensor of image embeddings, if image-embedding-conditional.
         :return: an [N x C x ...] Tensor of outputs.
         """
         assert (y is not None) == (
@@ -650,6 +661,9 @@ class UNetModel(nn.Module):
         if self.num_classes is not None:
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
+        elif img_emb is not None:
+            assert img_emb.shape[-1] == self.img_emb_dim
+            emb = emb + self.img_emb_proj(img_emb)
 
         h = x.type(self.dtype)
         for module in self.input_blocks:

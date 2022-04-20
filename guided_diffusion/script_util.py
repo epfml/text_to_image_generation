@@ -54,12 +54,14 @@ def model_and_diffusion_defaults():
         channel_mult="",
         dropout=0.0,
         class_cond=False,
+        emb_cond=False,
         use_checkpoint=False,
         use_scale_shift_norm=True,
         resblock_updown=False,
         use_fp16=False,
         use_new_attention_order=False,
-        num_classes=None
+        num_classes=None,
+        img_emb_dim=None
     )
     res.update(diffusion_defaults())
     return res
@@ -74,6 +76,7 @@ def classifier_and_diffusion_defaults():
 def create_model_and_diffusion(
     image_size,
     class_cond,
+    emb_cond,
     learn_sigma,
     num_channels,
     num_res_blocks,
@@ -95,7 +98,8 @@ def create_model_and_diffusion(
     resblock_updown,
     use_fp16,
     use_new_attention_order,
-    num_classes
+    num_classes,
+    img_emb_dim
 ):
     model = create_model(
         image_size,
@@ -104,6 +108,7 @@ def create_model_and_diffusion(
         channel_mult=channel_mult,
         learn_sigma=learn_sigma,
         class_cond=class_cond,
+        emb_cond=emb_cond,
         use_checkpoint=use_checkpoint,
         attention_resolutions=attention_resolutions,
         num_heads=num_heads,
@@ -114,7 +119,8 @@ def create_model_and_diffusion(
         resblock_updown=resblock_updown,
         use_fp16=use_fp16,
         use_new_attention_order=use_new_attention_order,
-        num_classes=num_classes
+        num_classes=num_classes,
+        img_emb_dim=img_emb_dim
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
@@ -136,6 +142,7 @@ def create_model(
     channel_mult="",
     learn_sigma=False,
     class_cond=False,
+    emb_cond=False,
     use_checkpoint=False,
     attention_resolutions="16",
     num_heads=1,
@@ -146,11 +153,15 @@ def create_model(
     resblock_updown=False,
     use_fp16=False,
     use_new_attention_order=False,
-    num_classes=None
+    num_classes=None,
+    img_emb_dim=None
 ):
 
     if class_cond and not num_classes:
         raise Exception("num_classes should be specified if class_cond is True.")
+
+    if emb_cond and not img_emb_dim:
+        raise Exception("img_emb_dim should be specified if emb_cond is True.")
     
     if channel_mult == "":
         if image_size == 512:
@@ -190,6 +201,7 @@ def create_model(
         use_scale_shift_norm=use_scale_shift_norm,
         resblock_updown=resblock_updown,
         use_new_attention_order=use_new_attention_order,
+        img_emb_dim=(int(img_emb_dim) if emb_cond else None)
     )
 
 
