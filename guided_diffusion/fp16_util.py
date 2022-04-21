@@ -153,6 +153,7 @@ class MixedPrecisionTrainer:
         use_fp16=False,
         fp16_scale_growth=1e-3,
         initial_lg_loss_scale=INITIAL_LOG_LOSS_SCALE,
+        gradient_clipping=True
     ):
         self.model = model
         self.use_fp16 = use_fp16
@@ -162,6 +163,7 @@ class MixedPrecisionTrainer:
         self.master_params = self.model_params
         self.param_groups_and_shapes = None
         self.lg_loss_scale = initial_lg_loss_scale
+        self.gradient_clipping = gradient_clipping
 
         if self.use_fp16:
             self.param_groups_and_shapes = get_param_groups_and_shapes(
@@ -210,6 +212,8 @@ class MixedPrecisionTrainer:
         grad_norm, param_norm = self._compute_norms()
         logger.logkv_mean("grad_norm", grad_norm)
         logger.logkv_mean("param_norm", param_norm)
+        if self.gradient_clipping:
+            th.nn.utils.clip_grad_norm_(self.master_params, 1)
         opt.step()
         return True
 

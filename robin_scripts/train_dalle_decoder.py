@@ -113,7 +113,8 @@ def main():
         weight_decay=args.weight_decay,
         lr_anneal_steps=args.lr_anneal_steps,
         model_name=args.model_name,
-        emb_cond=args.emb_cond
+        emb_cond=args.emb_cond,
+        gradient_clipping=args.gradient_clipping
     ).run_loop()
 
 
@@ -132,7 +133,8 @@ def create_argparser():
         resume_checkpoint="",
         use_fp16=False,
         fp16_scale_growth=1e-3,
-        model_name="model"
+        model_name="model",
+        gradient_clipping=True
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

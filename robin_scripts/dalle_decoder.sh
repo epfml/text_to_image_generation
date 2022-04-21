@@ -11,6 +11,7 @@ python train_dalle_decoder.py \
     --save_interval 100000 \
     --use_fp16 False \
     --fp16_scale_growth 1e-3 \
+    --gradient_clipping True \
     --model_name diffusion_dalle_decoder_fp32_cliped \
     --image_size 64 \
     --num_channels 192 \

@@ -39,7 +39,8 @@ class TrainLoop:
         weight_decay=0.0,
         lr_anneal_steps=0,
         model_name="model",
-        emb_cond=False
+        emb_cond=False,
+        gradient_clipping=True
     ):
         self.model = model
         self.diffusion = diffusion
@@ -74,6 +75,7 @@ class TrainLoop:
             model=self.model,
             use_fp16=self.use_fp16,
             fp16_scale_growth=fp16_scale_growth,
+            gradient_clipping=gradient_clipping
         )
 
         self.opt = AdamW(
