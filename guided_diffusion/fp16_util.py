@@ -212,8 +212,8 @@ class MixedPrecisionTrainer:
         grad_norm, param_norm = self._compute_norms()
         logger.logkv_mean("grad_norm", grad_norm)
         logger.logkv_mean("param_norm", param_norm)
-        if self.gradient_clipping:
-            th.nn.utils.clip_grad_norm_(self.master_params, 1)
+        if self.gradient_clipping is not None:
+            th.nn.utils.clip_grad_norm_(self.master_params, self.gradient_clipping)
         opt.step()
         return True
 

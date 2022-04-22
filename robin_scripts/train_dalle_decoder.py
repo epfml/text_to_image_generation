@@ -25,9 +25,14 @@ from guided_diffusion.script_util import (
 )
 from guided_diffusion.train_util import TrainLoop
 
+IMAGES_PATH = "../../../../mlodata1/roazbind/imagenet64/train_data_full.npz"
+EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full.npy"
+EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_mean.npy"
+EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_std.npy"
+
 
 class ImgEmbPair(Dataset):
-    def __init__(self, img_path, emb_path, img_size=64, transform=None, normalize_emb=True):
+    def __init__(self, img_path, emb_path, img_size=64, transform=None, normalize_emb=True, drop_emb_proba=0.2):
 
         data = np.load(img_path)["data"]
 
@@ -39,10 +44,11 @@ class ImgEmbPair(Dataset):
         self.embs = np.load(emb_path)
 
         if normalize_emb:
-            self.mean = np.load("../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy")   
-            self.std = np.load("../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy")
+            self.mean = np.load(EMBEDDING_MEAN_PATH)   
+            self.std = np.load(EMBEDDING_STD_PATH)
         self.normalize_emb = normalize_emb
         self.transform = transform
+        self.drop_emb_proba = drop_emb_proba
 
         assert len(self.imgs) == len(self.embs)
 
@@ -61,7 +67,9 @@ class ImgEmbPair(Dataset):
         emb = th.from_numpy(emb).float()
         if self.normalize_emb:
             emb = (emb - self.mean)/self.std  
-        
+        if np.random.binomial(n=1, p=self.drop_emb_proba) == 1:
+            emb *= 0
+
         return img, emb
 
 
@@ -81,12 +89,10 @@ def main():
 
     logger.log("loading dataset")
 
-    transform = [transforms.RandomHorizontalFlip(p=0.4), transforms.RandomCrop(32, padding=4)]
+    transform = [transforms.RandomHorizontalFlip(p=0.5)]#, transforms.RandomCrop(64, padding=4)]
     transform = transforms.Compose(transform)
 
-    img_path = "../../../../mlodata1/roazbind/imagenet64/train_data.npz"
-    emb_path = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
-    dataset = ImgEmbPair(img_path, emb_path, transform=transform)
+    dataset = ImgEmbPair(IMAGES_PATH, EMBEDDING_PATH, transform=transform)
     data = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=1, drop_last=True)
 
     def get_iterator(dataloader):
@@ -134,7 +140,7 @@ def create_argparser():
         use_fp16=False,
         fp16_scale_growth=1e-3,
         model_name="model",
-        gradient_clipping=True
+        gradient_clipping=None
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

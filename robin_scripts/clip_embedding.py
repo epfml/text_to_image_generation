@@ -9,7 +9,7 @@ model, preprocess = clip.load("ViT-B/32", device=device)
 
 img_size = 64
 img_size2 = img_size ** 2
-for i in range(1, 6):
+for i in range(0, 11):
 
     print(f"\nProcess batch {i}")
     batch = np.load(f"../../../../mlodata1/roazbind/imagenet64/train_data_batch_{i}.npz")

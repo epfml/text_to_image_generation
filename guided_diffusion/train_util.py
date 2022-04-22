@@ -40,7 +40,7 @@ class TrainLoop:
         lr_anneal_steps=0,
         model_name="model",
         emb_cond=False,
-        gradient_clipping=True
+        gradient_clipping=None
     ):
         self.model = model
         self.diffusion = diffusion
