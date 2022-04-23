@@ -20,11 +20,13 @@ from guided_diffusion.script_util import (
     model_and_diffusion_defaults,
     classifier_defaults,
     create_model_and_diffusion,
-    create_classifier,
     add_dict_to_argparser,
     args_to_dict,
 )
 
+EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full.npy"
+EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_mean.npy"
+EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_std.npy"
 
 def main():
     args = create_argparser().parse_args()
@@ -44,12 +46,23 @@ def main():
         model.convert_to_fp16()
     model.eval()
 
-    img_id = 2
-    img_emb = np.load("../../../../mlodata1/roazbind/imagenet64/train_embedding.npy")[img_id]
-    img_emb = th.from_numpy(img_emb).to("cuda:0") .float()
+    img_emb = np.load(EMBEDDING_PATH)[args.img_id]
+    mean = np.load(EMBEDDING_MEAN_PATH)   
+    std = np.load(EMBEDDING_STD_PATH)
+    img_emb = (img_emb - mean)/std
+    img_emb = th.from_numpy(img_emb).to("cuda:0").float()
 
     def model_fn(x, t, img_emb):
-        return model(x, t, img_emb=img_emb)
+        if args.guidance_scale is None:
+            return model(x, t, img_emb=img_emb)
+        else:
+            # Classifier-free guidance
+            cond_output = model(x, t, img_emb=img_emb)
+            uncond_output = model(x, t, img_emb=img_emb * 0)
+            cond_eps, cond_var = th.split(cond_output, cond_output.shape[1] // 2, dim=1)
+            uncond_eps, _ = th.split(uncond_output, uncond_output.shape[1] // 2, dim=1)
+            eps = uncond_eps + float(args.guidance_scale) * (cond_eps - uncond_eps)
+        return th.cat([eps, cond_var], dim=1)
 
     logger.log("sampling...")
     all_images = []
@@ -101,7 +114,9 @@ def create_argparser():
         model_path="",
         classifier_path="",
         classifier_scale=1.0,
-        out_path=""
+        out_path="",
+        img_id=0,
+        guidance_scale=None
     )
     defaults.update(model_and_diffusion_defaults())
     defaults.update(classifier_defaults())
