@@ -39,7 +39,7 @@ class ImgEmbPair(Dataset):
         # Reshape data to NCHW
         img_size2 = img_size**2
         data = np.dstack((data[:, :img_size2], data[:, img_size2:2*img_size2], data[:, 2*img_size2:]))
-        self.imgs = data.reshape((data.shape[0], img_size, img_size, 3)).transpose(0, 3, 2, 1)
+        self.imgs = data.reshape((data.shape[0], img_size, img_size, 3)).transpose(0, 3, 1, 2)
 
         self.embs = np.load(emb_path)
 
