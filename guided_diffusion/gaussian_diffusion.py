@@ -449,6 +449,8 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
+        image_guidance=None,
+        image_guidance_scale=0.001
     ):
         """
         Generate samples from the model.
@@ -480,6 +482,8 @@ class GaussianDiffusion:
             model_kwargs=model_kwargs,
             device=device,
             progress=progress,
+            image_guidance=image_guidance,
+            image_guidance_scale=image_guidance_scale
         ):
             final = sample
         return final["sample"]
@@ -495,6 +499,8 @@ class GaussianDiffusion:
         model_kwargs=None,
         device=None,
         progress=False,
+        image_guidance=None,
+        image_guidance_scale=0.001
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -531,6 +537,8 @@ class GaussianDiffusion:
                     cond_fn=cond_fn,
                     model_kwargs=model_kwargs,
                 )
+                if image_guidance is not None:
+                    out["sample"] = out["sample"] + float(image_guidance_scale) * (image_guidance - out["sample"])
                 yield out
                 img = out["sample"]
 

@@ -34,6 +34,14 @@ def main():
     dist_util.setup_dist()
     logger.configure(dir=args.out_path)
 
+    if args.image_guidance_path is not None:
+        image_guidance = Image.open(args.image_guidance_path)
+        image_guidance = np.array(image_guidance).transpose((2, 0, 1))
+        image_guidance = image_guidance / 127.5 - 1
+        image_guidance = th.from_numpy(image_guidance).to("cuda:0").float()
+    else:
+        image_guidance = None
+    
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
@@ -46,7 +54,9 @@ def main():
         model.convert_to_fp16()
     model.eval()
 
+    # img_emb = np.load("../images/other/corgi_hat_embedding.npy")
     img_emb = np.load(EMBEDDING_PATH)[args.img_id]
+
     mean = np.load(EMBEDDING_MEAN_PATH)   
     std = np.load(EMBEDDING_STD_PATH)
     img_emb = (img_emb - mean)/std
@@ -79,6 +89,8 @@ def main():
             model_kwargs=model_kwargs,
             cond_fn=None,
             device=dist_util.dev(),
+            image_guidance=image_guidance,
+            image_guidance_scale=args.image_guidance_scale
         )
         sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
         sample = sample.permute(0, 2, 3, 1)
@@ -116,7 +128,9 @@ def create_argparser():
         classifier_scale=1.0,
         out_path="",
         img_id=0,
-        guidance_scale=None
+        guidance_scale=None,
+        image_guidance_path=None,
+        image_guidance_scale=0.0
     )
     defaults.update(model_and_diffusion_defaults())
     defaults.update(classifier_defaults())
