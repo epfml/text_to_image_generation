@@ -24,9 +24,9 @@ from guided_diffusion.script_util import (
     args_to_dict,
 )
 
-EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full.npy"
-EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_mean.npy"
-EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_std.npy"
+EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
+EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy"
+EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy"
 
 def main():
     args = create_argparser().parse_args()

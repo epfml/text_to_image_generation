@@ -25,10 +25,10 @@ from guided_diffusion.script_util import (
 )
 from guided_diffusion.train_util import TrainLoop
 
-IMAGES_PATH = "../../../../mlodata1/roazbind/imagenet64/train_data_full.npz"
-EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full.npy"
-EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_mean.npy"
-EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_full_std.npy"
+IMAGES_PATH = "../../../../mlodata1/roazbind/imagenet64/train_data.npz"
+EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
+EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy"
+EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy"
 
 
 class ImgEmbPair(Dataset):
