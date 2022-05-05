@@ -155,6 +155,7 @@ class TrainLoop:
                 opt_checkpoint, map_location=dist_util.dev()
             )
             self.opt.load_state_dict(state_dict)
+            self._anneal_lr()
 
     def run_loop(self):
         while (
