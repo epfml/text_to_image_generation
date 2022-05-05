@@ -1,33 +1,129 @@
+import sys
+import argparse
+
+import setGPU
 import torch
 import clip
 from PIL import Image
 import numpy as np
+import torchvision.datasets as dset
+
+sys.path.append("..")
+from guided_diffusion.script_util import add_dict_to_argparser
+
 
 # Load model
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
 
-img_size = 64
-img_size2 = img_size ** 2
-for i in range(0, 11):
 
-    print(f"\nProcess batch {i}")
-    batch = np.load(f"../../../../mlodata1/roazbind/imagenet64/train_data_batch_{i}.npz")
+def main():
+    args = create_argparser().parse_args()
 
-    # Reshape data to NHWC
-    data = batch["data"]
-    data = np.dstack((data[:, :img_size2], data[:, img_size2:2*img_size2], data[:, 2*img_size2:]))
-    data = data.reshape((data.shape[0], img_size, img_size, 3))
-    print(f"Data with shape: {data.shape}")
+    datasets = {"imagenet": imagenet_emb,
+                 "coco": coco_emb}
+    if args.dataset in datasets.keys():
+        datasets[args.dataset]()
+    else:
+        raise Exception(f"Dataset {args.dataset} is not available, take one in {datasets.keys()} instead.")
 
-    embeddings = []
+
+def imagenet_emb():
+
+    img_size = 64
+    img_size2 = img_size ** 2
+    for i in range(0, 11):
+
+        print(f"\nProcess batch {i}")
+        batch = np.load(f"../../../../mlodata1/roazbind/imagenet64/train_data_batch_{i}.npz")
+
+        # Reshape data to NHWC
+        data = batch["data"]
+        data = np.dstack((data[:, :img_size2], data[:, img_size2:2*img_size2], data[:, 2*img_size2:]))
+        data = data.reshape((data.shape[0], img_size, img_size, 3))
+        print(f"Data with shape: {data.shape}")
+
+        embeddings = []
+        with torch.no_grad():
+            for j in range(len(data)):
+                if j % 25000 == 0:
+                    print(f"Process image {j + 1}")
+                image = Image.fromarray(data[j], mode="RGB")
+                embeddings.append(get_image_embedding(image))
+
+        embeddings = np.vstack(embeddings)
+        np.save(f"../../../../mlodata1/roazbind/imagenet64/embedding_batch_{i}.npy", embeddings)
+        print(f"Batch {i} saved.")
+
+
+def coco_emb():
+
+    print("Processing train set")
+    data = dset.CocoCaptions(root ="../../../../mlodata1/roazbind/coco/train2014", 
+                            annFile = '../../../../mlodata1/roazbind/coco/annotations/captions_train2014.json')
+
+    img_embeddings = []
+    txt_embeddings = []
     with torch.no_grad():
         for j in range(len(data)):
-            if j % 25000 == 0:
-                print(f"Process image {j + 1}")
-            image = preprocess(Image.fromarray(data[j], mode="RGB")).unsqueeze(0).to(device)
-            embeddings.append(model.encode_image(image).cpu().numpy().squeeze())
 
-    embeddings = np.vstack(embeddings)
-    np.save(f"../../../../mlodata1/roazbind/imagenet64/embedding_batch_{i}.npy", embeddings)
-    print(f"Batch {i} saved.")
+            if j % 10000 == 0:
+                print(f"Process image {j + 1}")
+            image, captions = data[j]
+            img_embeddings.append(get_image_embedding(image))
+            txt_embeddings.append(get_text_embedding(captions[:5]))
+
+    img_embeddings = np.array(img_embeddings)
+    txt_embeddings = np.array(txt_embeddings)
+
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_img.npy", img_embeddings)
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_txt.npy", txt_embeddings)
+
+    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy", np.mean(img_embeddings, 0))
+    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_std.npy", np.std(img_embeddings, 0))
+    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_mean.npy", np.mean(txt_embeddings, (0,1)))
+    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_std.npy", np.std(txt_embeddings, (0,1)))
+
+    print("Processing validation set")
+    data = dset.CocoCaptions(root ="../../../../mlodata1/roazbind/coco/val2014", 
+                            annFile = '../../../../mlodata1/roazbind/coco/annotations/captions_val2014.json')
+
+    img_embeddings = []
+    txt_embeddings = []
+    with torch.no_grad():
+        for j in range(len(data)):
+            if j % 5000 == 0:
+                print(f"Process image {j + 1}")
+            image, captions = data[j]
+            img_embeddings.append(get_image_embedding(image))
+            txt_embeddings.append(get_text_embedding(captions[:5]))
+
+    img_embeddings = np.array(img_embeddings)
+    txt_embeddings = np.array(txt_embeddings)
+
+    np.save(f"../../../../mlodata1/roazbind/coco/val_embedding_img.npy", img_embeddings)
+    np.save(f"../../../../mlodata1/roazbind/coco/val_embedding_txt.npy", txt_embeddings)
+
+
+def get_image_embedding(image):
+    image = preprocess(image).unsqueeze(0).to(device)
+    return model.encode_image(image).cpu().numpy().squeeze()
+
+
+def get_text_embedding(captions):
+    captions = clip.tokenize(captions).to(device)
+    return model.encode_text(captions).cpu().numpy().squeeze()
+
+
+def create_argparser():
+        defaults = dict(
+            dataset="imagenet"
+        )
+        parser = argparse.ArgumentParser()
+        add_dict_to_argparser(parser, defaults)
+        return parser
+
+
+if __name__ == "__main__":
+    main()
+    
