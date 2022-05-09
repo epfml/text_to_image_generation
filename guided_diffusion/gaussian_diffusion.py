@@ -10,6 +10,7 @@ import math
 
 import numpy as np
 import torch as th
+from PIL import Image
 
 from .nn import mean_flat
 from .losses import normal_kl, discretized_gaussian_log_likelihood
@@ -452,6 +453,7 @@ class GaussianDiffusion:
         image_guidance=None,
         image_guidance_scale=0.01,
         image_guidance_decay="linear",
+        latent_save_interval=None
     ):
         """
         Generate samples from the model.
@@ -509,6 +511,7 @@ class GaussianDiffusion:
         image_guidance=None,
         image_guidance_scale=0.01,
         image_guidance_decay="linear",
+        latent_save_interval=None
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -551,6 +554,15 @@ class GaussianDiffusion:
                     else:
                         decay = 1
                     out["sample"] = out["sample"] + float(image_guidance_scale) * decay * (image_guidance - out["sample"])
+                
+                if latent_save_interval is not None:
+                    if (i + 1) % latent_save_interval == 0:
+                        sample = ((out["sample"] + 1) * 127.5).clamp(0, 255).to(th.uint8)
+                        sample = sample.permute(0, 2, 3, 1)
+                        sample = sample.contiguous().cpu().numpy()
+                        # We save only the first sample of the batch.
+                        Image.fromarray(sample[0],"RGB").save(f"../images/latents/latent_{i+1}.png")
+                
                 yield out
                 img = out["sample"]
 
