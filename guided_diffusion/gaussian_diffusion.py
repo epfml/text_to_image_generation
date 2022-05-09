@@ -450,7 +450,8 @@ class GaussianDiffusion:
         device=None,
         progress=False,
         image_guidance=None,
-        image_guidance_scale=0.001
+        image_guidance_scale=0.01,
+        image_guidance_decay="linear",
     ):
         """
         Generate samples from the model.
@@ -469,6 +470,11 @@ class GaussianDiffusion:
         :param device: if specified, the device to create the samples on.
                        If not specified, use a model parameter's device.
         :param progress: if True, show a tqdm progress bar.
+        :image_guidance: if not None, an image to guide the generating process.
+        :image_guidance_scale: if image_guidance is not None, the scale of 
+                               the image guidance.
+        :image_guidance_decay: if image_guidance is not None, the decay applied 
+                               to the scale of the image guidance.
         :return: a non-differentiable batch of samples.
         """
         final = None
@@ -483,7 +489,8 @@ class GaussianDiffusion:
             device=device,
             progress=progress,
             image_guidance=image_guidance,
-            image_guidance_scale=image_guidance_scale
+            image_guidance_scale=image_guidance_scale,
+            image_guidance_decay=image_guidance_decay,
         ):
             final = sample
         return final["sample"]
@@ -500,7 +507,8 @@ class GaussianDiffusion:
         device=None,
         progress=False,
         image_guidance=None,
-        image_guidance_scale=0.001
+        image_guidance_scale=0.01,
+        image_guidance_decay="linear",
     ):
         """
         Generate samples from the model and yield intermediate samples from
@@ -538,7 +546,11 @@ class GaussianDiffusion:
                     model_kwargs=model_kwargs,
                 )
                 if image_guidance is not None:
-                    out["sample"] = out["sample"] + float(image_guidance_scale) * (image_guidance - out["sample"])
+                    if image_guidance_decay == "linear":
+                        decay = t[:, None, None, None]/self.num_timesteps
+                    else:
+                        decay = 1
+                    out["sample"] = out["sample"] + float(image_guidance_scale) * decay * (image_guidance - out["sample"])
                 yield out
                 img = out["sample"]
 
