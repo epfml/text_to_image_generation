@@ -1,5 +1,7 @@
+cd ..
+
 : '
-python ../train_dalle_decoder.py \
+python train_dalle_decoder.py \
     --schedule_sampler uniform \
     --lr 3e-4 \
     --weight_decay 0 \
@@ -74,3 +76,5 @@ python ../sample_dalle_decoder.py \
     --image_guidance_path ../images/other/corgi.png \
     --image_guidance_scale 0.005 \
     --image_guidance_decay linear \
+
+cd shell_files

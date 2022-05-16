@@ -1,5 +1,8 @@
-python ../sample_from_text.py \
-    --caption "An image of a dog lying on the beach with birds flying in the sky. Birds flying in the sky above a beach with a dog." \
+cd ..
+
+python sample_from_text.py \
+    --captions "An image of a dog lying on the beach with birds flying in the sky. Birds flying in the sky above a beach with a dog." \
+               "Second caption" \
     --num_samples 10 \
     --batch_size 10 \
     --use_ddim False \
@@ -32,3 +35,5 @@ python ../sample_from_text.py \
     --rescale_learned_sigmas False \
     #--image_guidance_path ../images/imagenet64/groundtruth/image0.jpg \
     #--image_guidance_scale 0.003 \
+
+cd shell_files

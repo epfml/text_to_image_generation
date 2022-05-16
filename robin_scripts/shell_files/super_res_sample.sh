@@ -1,4 +1,6 @@
-python ../super_res_sample_test.py \
+cd ..
+
+python super_res_sample_test.py \
     --clip_denoised True \
     --num_samples 1 \
     --batch_size 1 \
@@ -31,3 +33,4 @@ python ../super_res_sample_test.py \
 #    --use_checkpoint USE_CHECKPOINT \
 #    --timestep_respacing TIMESTEP_RESPACING \
 
+cd shell_files

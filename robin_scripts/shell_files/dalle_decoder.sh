@@ -1,5 +1,6 @@
+cd ..
 
-python ../train_dalle_decoder.py \
+python train_dalle_decoder.py \
     --schedule_sampler uniform \
     --lr 6e-5 \
     --weight_decay 0 \
@@ -75,3 +76,5 @@ python ../sample_dalle_decoder.py \
     #--image_guidance_path ../images/imagenet64/groundtruth/image0.jpg \
     #--image_guidance_scale 0.003 \
 '
+
+cd shell_files
