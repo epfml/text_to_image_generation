@@ -1,10 +1,10 @@
 python sample_from_text.py \
-    --caption "Hockey players stading in a ice rink." \
+    --caption "An image of a dog lying on the beach with birds flying in the sky. Birds flying in the sky above a beach with a dog." \
     --num_samples 10 \
     --batch_size 10 \
     --use_ddim False \
     --model_path ../log/diffusion/diffusion_dalle_decoder_final_2_lr/ema_0.9999_800000.pt \
-    --out_path ../images/pipeline/hockey \
+    --out_path ../images/pipeline/dog_birds \
     --guidance_scale 4 \
     --image_size 64 \
     --num_channels 256 \
