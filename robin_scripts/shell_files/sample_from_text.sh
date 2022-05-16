@@ -1,4 +1,4 @@
-python sample_from_text.py \
+python ../sample_from_text.py \
     --caption "An image of a dog lying on the beach with birds flying in the sky. Birds flying in the sky above a beach with a dog." \
     --num_samples 10 \
     --batch_size 10 \

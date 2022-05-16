@@ -1,5 +1,5 @@
 
-python train_dalle_decoder.py \
+python ../train_dalle_decoder.py \
     --schedule_sampler uniform \
     --lr 6e-5 \
     --weight_decay 0 \
@@ -39,7 +39,7 @@ python train_dalle_decoder.py \
     --resume_checkpoint ../log/diffusion_dalle_decoder_final/model400000.pt
 
 : '
-python sample_dalle_decoder.py \
+python ../sample_dalle_decoder.py \
     --clip_denoised True \
     --num_samples 1 \
     --batch_size 1 \

@@ -1,4 +1,4 @@
-python super_res_sample_test.py \
+python ../super_res_sample_test.py \
     --clip_denoised True \
     --num_samples 1 \
     --batch_size 1 \

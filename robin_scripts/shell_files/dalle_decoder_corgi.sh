@@ -1,5 +1,5 @@
 : '
-python train_dalle_decoder.py \
+python ../train_dalle_decoder.py \
     --schedule_sampler uniform \
     --lr 3e-4 \
     --weight_decay 0 \
@@ -38,7 +38,7 @@ python train_dalle_decoder.py \
     --rescale_learned_sigmas False \
 '
 
-python sample_dalle_decoder.py \
+python ../sample_dalle_decoder.py \
     --clip_denoised True \
     --num_samples 10 \
     --batch_size 10 \
