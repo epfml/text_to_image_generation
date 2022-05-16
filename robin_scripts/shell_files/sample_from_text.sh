@@ -2,7 +2,7 @@ cd ..
 
 python sample_from_text.py \
     --captions "An image of a dog lying on the beach with birds flying in the sky. Birds flying in the sky above a beach with a dog." \
-               "Second caption" \
+               "An image of a bird standing on a beach near the ocean." \
     --num_samples 10 \
     --batch_size 10 \
     --use_ddim False \

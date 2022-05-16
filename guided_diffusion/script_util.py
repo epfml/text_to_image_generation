@@ -460,6 +460,9 @@ def add_dict_to_argparser(parser, default_dict):
             v_type = str
         elif isinstance(v, bool):
             v_type = str2bool
+        elif isinstance(v, list):
+            parser.add_argument(f"--{k}", default=v, nargs='+')
+            continue
         parser.add_argument(f"--{k}", default=v, type=v_type)
 
 

@@ -38,10 +38,10 @@ def main():
     model, _ = clip.load("ViT-B/32", device=device)
 
     logger.log("encoding caption...")
-    caption = clip.tokenize(args.caption).to(device)
-    txt_emb = model.encode_text(caption).cpu().detach().numpy().squeeze()
-    txt_emb = (txt_emb - txt_mean)/txt_std
-    txt_emb = th.from_numpy(txt_emb).float().to(device)
+    captions = clip.tokenize(args.captions).to(device)
+    txt_embs = model.encode_text(captions).cpu().detach().numpy().squeeze()
+    txt_embs = (txt_embs - txt_mean)/txt_std
+    txt_embs = th.from_numpy(txt_embs).float().to(device)
 
     logger.log("loading MLP model...")
     checkpoint = th.load(args.mlp_checkpoint)
@@ -49,10 +49,10 @@ def main():
     model.load_state_dict(checkpoint)
 
     logger.log("text embedding to image embedding...")
-    img_emb = model(txt_emb).cpu().detach().numpy()
-    img_emb = img_emb * img_std_mlp + img_mean_mlp
-    img_emb = (img_emb - img_mean_dif)/img_std_dif
-    img_emb = th.from_numpy(img_emb).float().to(device)
+    img_embs = model(txt_embs).cpu().detach().numpy()
+    img_embs = img_embs * img_std_mlp + img_mean_mlp
+    img_embs = (img_embs - img_mean_dif)/img_std_dif
+    img_embs = th.from_numpy(img_embs).float().to(device)
 
     logger.log("loading diffusion model...")
     model, diffusion = create_model_and_diffusion(
@@ -85,43 +85,58 @@ def main():
         return th.cat([eps, cond_var], dim=1)
 
     logger.log("sampling...")
-    all_images = []
-    model_kwargs = {}
-    model_kwargs["img_emb"] = img_emb
-    while len(all_images) * args.batch_size < args.num_samples:
-        sample_fn = (
-            diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
-        )
-        sample = sample_fn(
-            model_fn,
-            (args.batch_size, 3, args.image_size, args.image_size),
-            clip_denoised=args.clip_denoised,
-            model_kwargs=model_kwargs,
-            cond_fn=None,
-            device=dist_util.dev(),
-            image_guidance=image_guidance,
-            image_guidance_scale=args.image_guidance_scale
-        )
-        sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
-        sample = sample.permute(0, 2, 3, 1)
-        sample = sample.contiguous()
-        np.set_printoptions(threshold=np.inf)
 
-        gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
-        dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
-        all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
-        logger.log(f"created {len(all_images) * args.batch_size} samples")
+    for i, img_emb in enumerate(img_embs):
+        if len(img_emb.shape) == 0:
+            # Only one embedding was given
+            img_emb = img_embs
+        else:
+            logger.log(f"caption {i}...")
+        all_images = []
+        model_kwargs = {}
+        model_kwargs["img_emb"] = img_emb
+        while len(all_images) * args.batch_size < args.num_samples:
+            sample_fn = (
+                diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
+            )
+            sample = sample_fn(
+                model_fn,
+                (args.batch_size, 3, args.image_size, args.image_size),
+                clip_denoised=args.clip_denoised,
+                model_kwargs=model_kwargs,
+                cond_fn=None,
+                device=dist_util.dev(),
+                image_guidance=image_guidance,
+                image_guidance_scale=args.image_guidance_scale
+            )
+            sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
+            sample = sample.permute(0, 2, 3, 1)
+            sample = sample.contiguous()
+            np.set_printoptions(threshold=np.inf)
 
-    arr = np.concatenate(all_images, axis=0)
-    arr = arr[: args.num_samples]
-    if dist.get_rank() == 0:
-        shape_str = "x".join([str(x) for x in arr.shape])
-        out_path = os.path.join(logger.get_dir(), f"samples_{shape_str}.npz")
-        logger.log(f"saving to {out_path}")
-        np.savez(out_path, arr)
-        for i, a in enumerate(arr):
-            out_path = os.path.join(logger.get_dir(), f"sample_{i}.png")
-            Image.fromarray(a,"RGB").save(out_path)
+            gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
+            dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
+            all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
+            logger.log(f"created {len(all_images) * args.batch_size} samples")
+
+        arr = np.concatenate(all_images, axis=0)
+        arr = arr[: args.num_samples]
+        if dist.get_rank() == 0:
+            if len(img_embs) > 1:
+                folder = f"caption_{i}/"
+                os.makedirs(os.path.join(logger.get_dir(), f"{folder}"), exist_ok=True)
+            else:
+                folder = ""
+            txt_file = f"{os.path.join(logger.get_dir(), f'{folder}')}/caption.txt"
+            open(txt_file,'w').write(args.captions[i])
+            shape_str = "x".join([str(x) for x in arr.shape])
+            out_path = os.path.join(logger.get_dir(), f"{folder}samples_{shape_str}.npz")
+            logger.log(f"saving to {out_path}")
+            np.savez(out_path, arr)
+            
+            for j, a in enumerate(arr):
+                out_path = os.path.join(logger.get_dir(), f"{folder}sample_{j}.png")
+                Image.fromarray(a,"RGB").save(out_path)
 
     dist.barrier()
     logger.log("sampling complete")
@@ -129,7 +144,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        caption="A picture of a dog.",
+        captions=["A picture of a dog.", "A picture of a cat"],
         clip_denoised=True,
         num_samples=10000,
         batch_size=16,
