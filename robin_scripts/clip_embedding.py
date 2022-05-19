@@ -7,6 +7,7 @@ import clip
 from PIL import Image
 import numpy as np
 import torchvision.datasets as dset
+import webdataset as wds
 
 sys.path.append("..")
 from guided_diffusion.script_util import add_dict_to_argparser
@@ -21,7 +22,10 @@ def main():
     args = create_argparser().parse_args()
 
     datasets = {"imagenet": imagenet_emb,
-                 "coco": coco_emb}
+                 "coco": coco_emb,
+                 "cc3m": cc3m_emb,
+                 "cc12m": cc12m_emb}
+
     if args.dataset in datasets.keys():
         datasets[args.dataset]()
     else:
@@ -79,10 +83,10 @@ def coco_emb():
     np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_img.npy", img_embeddings)
     np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_txt.npy", txt_embeddings)
 
-    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy", np.mean(img_embeddings, 0))
-    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_std.npy", np.std(img_embeddings, 0))
-    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_mean.npy", np.mean(txt_embeddings, (0,1)))
-    np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_std.npy", np.std(txt_embeddings, (0,1)))
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy", np.mean(img_embeddings, 0))
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_img_std.npy", np.std(img_embeddings, 0))
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_mean.npy", np.mean(txt_embeddings, (0,1)))
+    np.save(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_std.npy", np.std(txt_embeddings, (0,1)))
 
     print("Processing validation set")
     data = dset.CocoCaptions(root ="../../../../mlodata1/roazbind/coco/val2014", 
@@ -105,13 +109,74 @@ def coco_emb():
     np.save(f"../../../../mlodata1/roazbind/coco/val_embedding_txt.npy", txt_embeddings)
 
 
+def cc3m_emb():
+
+    num_shard = 331
+    num_samples = 0
+    with torch.no_grad():
+        for i in range(1, num_shard + 1):
+            print(f"shard {i}")
+            url = f"../../../../mlodata1/roazbind/cc3m/images_256/00{str(i).zfill(3)}.tar"
+            
+            img_embeddings, txt_embeddings = ccm_helper(url)
+      
+            num_samples += len(img_embeddings)
+            print(len(img_embeddings))
+
+            np.save(f"../../../../mlodata1/roazbind/cc3m/embeddings/captions/00{str(i).zfill(3)}.npy", txt_embeddings)
+            np.save(f"../../../../mlodata1/roazbind/cc3m/embeddings/images/00{str(i).zfill(3)}.npy", img_embeddings)
+    print(num_samples)
+
+
+def cc12m_emb():
+
+    num_shard = 1242
+    num_samples = 0
+    with torch.no_grad():
+        for i in range(1, num_shard + 1):
+            print(f"shard {i}")
+            url = f"../../../../mlodata1/roazbind/cc12m/images_256/00{str(i).zfill(3)}.tar"
+            
+            img_embeddings, txt_embeddings = ccm_helper(url)
+      
+            num_samples += len(img_embeddings)
+            print(len(img_embeddings))
+
+            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/captions/00{str(i).zfill(3)}.npy", txt_embeddings)
+            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/images/00{str(i).zfill(3)}.npy", img_embeddings)
+    print(num_samples)
+
+
+def ccm_helper(url):
+
+    dataset = wds.WebDataset(url).decode("pil").to_tuple("jpg;png", "json", "txt").map_tuple(preprocess, identity, identity)
+            
+    batch_size = 512
+    dataloader = torch.utils.data.DataLoader(dataset.batched(batch_size), num_workers=4, batch_size=None)
+
+    img_embeddings = []
+    txt_embeddings = []
+    for images, _, captions in dataloader:
+        img_embeddings.append(model.encode_image(images.to(device)).cpu().numpy().squeeze())
+        txt_embeddings.append(get_text_embedding(captions))
+
+    img_embeddings = np.concatenate(img_embeddings, axis=0)
+    txt_embeddings = np.concatenate(txt_embeddings, axis=0)
+
+    return img_embeddings, txt_embeddings
+
+
+def identity(x):
+        return x
+
+
 def get_image_embedding(image):
     image = preprocess(image).unsqueeze(0).to(device)
     return model.encode_image(image).cpu().numpy().squeeze()
 
 
 def get_text_embedding(captions):
-    captions = clip.tokenize(captions).to(device)
+    captions = clip.tokenize(captions, truncate=True).to(device)
     return model.encode_text(captions).cpu().numpy().squeeze()
 
 
