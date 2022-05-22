@@ -135,15 +135,15 @@ def cc12m_emb():
     with torch.no_grad():
         for i in range(1, num_shard + 1):
             print(f"shard {i}")
-            url = f"../../../../mlodata1/roazbind/cc12m/images_256/00{str(i).zfill(3)}.tar"
+            url = f"../../../../mlodata1/roazbind/cc12m/images_256/0{str(i).zfill(4)}.tar"
             
             img_embeddings, txt_embeddings = ccm_helper(url)
       
             num_samples += len(img_embeddings)
             print(len(img_embeddings))
 
-            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/captions/00{str(i).zfill(3)}.npy", txt_embeddings)
-            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/images/00{str(i).zfill(3)}.npy", img_embeddings)
+            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/captions/0{str(i).zfill(4)}.npy", txt_embeddings)
+            np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/images/0{str(i).zfill(4)}.npy", img_embeddings)
     print(num_samples)
 
 
