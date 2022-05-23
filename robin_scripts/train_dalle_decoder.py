@@ -8,14 +8,12 @@ import argparse
 
 import setGPU
 
-import numpy as np
 import torch as th
 from torchvision import transforms
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, ConcatDataset
 
 sys.path.append("..")
 from guided_diffusion import dist_util, logger
-from guided_diffusion.image_datasets import load_data
 from guided_diffusion.resample import create_named_schedule_sampler
 from guided_diffusion.script_util import (
     model_and_diffusion_defaults,
@@ -24,59 +22,16 @@ from guided_diffusion.script_util import (
     add_dict_to_argparser,
 )
 from guided_diffusion.train_util import TrainLoop
+from guided_diffusion.dataset_helpers import ImagenetDataset, CCDataset, get_iterator
 
-IMAGES_PATH = "../../../../mlodata1/roazbind/imagenet64/train_data.npz"
-EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
-EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy"
-EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy"
-
-
-class ImgEmbPair(Dataset):
-    def __init__(self, img_path, emb_path, img_size=64, transform=None, normalize_emb=True, drop_emb_proba=0.2):
-
-        data = np.load(img_path)["data"]
-
-        # Reshape data to NCHW
-        img_size2 = img_size**2
-        data = np.dstack((data[:, :img_size2], data[:, img_size2:2*img_size2], data[:, 2*img_size2:]))
-        self.imgs = data.reshape((data.shape[0], img_size, img_size, 3)).transpose(0, 3, 1, 2)
-
-        self.embs = np.load(emb_path)
-
-        if normalize_emb:
-            self.mean = np.load(EMBEDDING_MEAN_PATH)   
-            self.std = np.load(EMBEDDING_STD_PATH)
-        self.normalize_emb = normalize_emb
-        self.transform = transform
-        self.drop_emb_proba = drop_emb_proba
-
-        assert len(self.imgs) == len(self.embs)
-
-    def __len__(self):
-        return len(self.embs)
-
-    def __getitem__(self, idx):
-
-        img = self.imgs[idx]
-        img = th.from_numpy(img)
-        if self.transform is not None:
-            img = self.transform(img)
-        img = img / 127.5 - 1
-
-        emb = self.embs[idx]
-        emb = th.from_numpy(emb).float()
-        if self.normalize_emb:
-            emb = (emb - self.mean)/self.std  
-        if np.random.binomial(n=1, p=self.drop_emb_proba) == 1:
-            emb *= 0
-
-        return img, emb
+th.manual_seed(42)
 
 
 def main():
+
     args = create_argparser().parse_args()
     dist_util.setup_dist()
-    dir = f"../log/{args.model_name}"
+    dir = f"../log/diffusion/{args.model_name}"
     os.makedirs(dir, exist_ok=True)
     logger.configure(dir=dir, format_strs=["stdout","log","csv","tensorboard"])
 
@@ -87,19 +42,30 @@ def main():
     model.to(dist_util.dev())
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
 
-    logger.log("loading dataset")
+    logger.log("loading dataset...")
 
     transform = [transforms.RandomHorizontalFlip(p=0.5)]#, transforms.RandomCrop(64, padding=4)]
     transform = transforms.Compose(transform)
 
-    dataset = ImgEmbPair(IMAGES_PATH, EMBEDDING_PATH, transform=transform)
-    data = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=1, drop_last=True)
+    logger.log("loading cc3m dataset...")
+    num_shard = 331
+    image_folder_path = "../../../../mlodata1/roazbind/cc3m/images_64"
+    embeddings_folder_path = "../../../../mlodata1/roazbind/cc3m/embeddings/images"
+    cc3m_dataset = CCDataset(num_shard, image_folder_path, embeddings_folder_path, transform=transform)
 
-    def get_iterator(dataloader):
-        while True:
-            yield from dataloader
+    logger.log("loading cc12m dataset...")
+    num_shard = 1242
+    image_folder_path = "../../../../mlodata1/roazbind/cc12m/images_64"
+    embeddings_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/images"
+    cc12m_dataset = CCDataset(num_shard, image_folder_path, embeddings_folder_path, transform=transform)
 
+    logger.log("loading ImageNet dataset...")
+    imagenet = ImagenetDataset(transform=transform)
+    
+    dataset = ConcatDataset((cc3m_dataset, cc12m_dataset, imagenet))
+    data = DataLoader(dataset, batch_size=args.batch_size, shuffle=True, num_workers=1, drop_last=True)
     data = get_iterator(data)
+
     
     logger.log("training...")
     TrainLoop(
