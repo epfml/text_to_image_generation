@@ -5,7 +5,7 @@ import argparse
 import numpy as np
 import torch as th
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, ConcatDataset
 
 sys.path.append("..")
 from guided_diffusion import dist_util, logger
@@ -13,32 +13,12 @@ from guided_diffusion.script_util import (
     add_dict_to_argparser
 )
 from guided_diffusion.mlp import MLP_mixer
+from guided_diffusion.dataset_helpers import CCCaptionsDataset, CocoDataset
 
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
 num_captions = 5
-
-class CocoDataset(Dataset):
-
-    def __init__(self, txt_embeddings, img_embeddings, txt_mean, txt_std, img_mean, img_std):
-        self.txt_embeddings = txt_embeddings
-        self.img_embeddings = img_embeddings
-        self.txt_mean = txt_mean
-        self.txt_std = txt_std
-        self.img_mean = img_mean
-        self.img_std = img_std
-
-    def __len__(self):
-        return self.img_embeddings.shape[0]
-    
-    def __getitem__(self, ind):
-        # Get a random caption among the available ones
-        txt_embedding = self.txt_embeddings[ind][np.random.randint(num_captions)]
-        txt_embedding = (txt_embedding - self.txt_mean)/self.txt_std
-        img_embedding = self.img_embeddings[ind]
-        img_embedding = (img_embedding - self.img_mean)/self.img_std
-        return th.from_numpy(txt_embedding).float(), th.from_numpy(img_embedding).float()
 
 
 def main():
@@ -50,29 +30,37 @@ def main():
     os.makedirs(dir, exist_ok=True)
     logger.configure(dir=dir, format_strs=["stdout","log","csv","tensorboard"])
 
-    logger.log("loading dataset...")
+    logger.log("loading datasets...")
+
+    logger.log("loading cc3m dataset...")
+    num_shard = 331
+    img_emb_folder_path = "../../../../mlodata1/roazbind/cc3m/embeddings/images"
+    txt_emb_folder_path = "../../../../mlodata1/roazbind/cc3m/embeddings/captions"
+    cc3m_dataset = CCCaptionsDataset(num_shard, img_emb_folder_path, txt_emb_folder_path)
+
+    logger.log("loading cc12m dataset...")
+    num_shard = 125 # less shards, before 1242
+    img_emb_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/images_less_shards"
+    txt_emb_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/captions_less_shards"
+    cc12m_dataset = CCCaptionsDataset(num_shard, img_emb_folder_path, txt_emb_folder_path)
+
+    logger.log("loading COCO dataset...")
     train_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt.npy")
     train_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img.npy")
     val_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_txt.npy")
     val_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_img.npy")
+    coco_train_set = CocoDataset(train_txt_embeddings, train_img_embeddings)
+    test_set = CocoDataset(val_txt_embeddings, val_img_embeddings)
 
-    txt_mean = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_mean.npy")
-    txt_std = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_std.npy")
-    img_mean = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy")
-    img_std = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy")
-
-    train_set = CocoDataset(train_txt_embeddings, train_img_embeddings, 
-                            txt_mean, txt_std, img_mean, img_std)
-    test_set = CocoDataset(val_txt_embeddings, val_img_embeddings, 
-                           txt_mean, txt_std, img_mean, img_std)
+    train_set = ConcatDataset((cc3m_dataset, cc12m_dataset, coco_train_set))
 
     batch_size = args.batch_size
-    train_loader = DataLoader(train_set, batch_size=batch_size)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
     test_loader  = DataLoader(test_set, batch_size=len(test_set))
     val_txt_emb, val_img_emb = next(iter(test_loader))
 
     logger.log("creating model...")
-    model = MLP_mixer(emb_dim=args.emb_dim, width=512, num_layers=8).to(device)
+    model = MLP_mixer(emb_dim=args.emb_dim, width=512, num_layers=args.num_layers).to(device)
     
     optimizer = th.optim.AdamW(model.parameters(), weight_decay=args.weight_decay)
     criterion = nn.MSELoss()
@@ -98,12 +86,14 @@ def main():
             if iteration % args.log_interval == 0:
 
                 # Compute validation loss
-                with th.no_grad():    
+                with th.no_grad():
                     output = model(val_txt_emb.to(device))
                     loss = criterion(output, val_img_emb.to(device))
                     logger.logkv_mean("validation loss", loss.item())
-                    if loss < best_val_loss:
+                    if loss.item() < best_val_loss:
+                        logger.log(f"Save model at epoch {epoch} and iteration {iteration} with val loss {loss.item()}")
                         th.save(model.state_dict(), f"{dir}/model_ES.pt")
+                        best_val_loss = loss.item()
 
                 # Identity model loss
                 loss = criterion(val_txt_emb.to(device), val_img_emb.to(device))
@@ -111,7 +101,7 @@ def main():
 
                 logger.dumpkvs()
 
-            if iteration % args.save_interval == 0:
+            if iteration % args.save_interval == 0 and iteration != 0:
                 th.save(model.state_dict(), f"{dir}/model{(iteration):08d}.pt")
                 th.save(optimizer.state_dict(), f"{dir}/opt{(iteration):08d}.pt")
 
@@ -127,6 +117,7 @@ def create_argparser():
         weight_decay=0.04,
         dropout=0.3,
         epochs=1000,
+        num_layers=8,
         emb_dim=512
     )
     parser = argparse.ArgumentParser()
