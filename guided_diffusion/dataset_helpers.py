@@ -9,6 +9,8 @@ from torch.utils.data import Dataset
 
 EMBEDDING_IMAGE_MEAN_PATH = "../../../../mlodata1/roazbind/embeddings_stats/image_embedding_mean.npy"
 EMBEDDING_IMAGE_STD_PATH = "../../../../mlodata1/roazbind/embeddings_stats/image_embedding_std.npy"
+EMBEDDING_CAPTION_MEAN_PATH = "../../../../mlodata1/roazbind/embeddings_stats/caption_embedding_mean.npy"
+EMBEDDING_CAPTION_STD_PATH = "../../../../mlodata1/roazbind/embeddings_stats/caption_embedding_std.npy"
 
 
 class ImagenetDataset(Dataset):
@@ -103,6 +105,71 @@ class CCDataset(Dataset):
             emb *= 0
 
         return img, emb
+
+
+class CCCaptionsDataset(Dataset):
+
+    def __init__(self, num_shard, img_emb_folder_path, txt_emb_folder_path):
+
+        
+        self.img_emb_mean = np.load(EMBEDDING_IMAGE_MEAN_PATH)   
+        self.img_emb_std = np.load(EMBEDDING_IMAGE_STD_PATH)
+        self.txt_emb_mean = np.load(EMBEDDING_CAPTION_MEAN_PATH)   
+        self.txt_emb_std = np.load(EMBEDDING_CAPTION_STD_PATH)
+
+        img_emb_paths = [f"{img_emb_folder_path}/0{str(i).zfill(4)}.npy" for i in range(1, num_shard + 1)]
+        txt_emb_paths = [f"{txt_emb_folder_path}/0{str(i).zfill(4)}.npy" for i in range(1, num_shard + 1)]
+
+        self.img_emb_memmaps = [np.load(path, mmap_mode='r') for path in img_emb_paths]
+        self.txt_emb_memmaps = [np.load(path, mmap_mode='r') for path in txt_emb_paths]
+
+        self.start_indices = [0] * len(img_emb_paths)
+        self.emb_count = 0
+        for index, memmap in enumerate(self.img_emb_memmaps):
+            self.start_indices[index] = self.emb_count
+            self.emb_count += memmap.shape[0]
+
+    def __len__(self):
+        return self.emb_count
+
+    def __getitem__(self, index):
+
+        memmap_index = bisect(self.start_indices, index) - 1
+        index_in_memmap = index - self.start_indices[memmap_index]
+        img_emb = self.img_emb_memmaps[memmap_index][index_in_memmap]
+        txt_emb = self.txt_emb_memmaps[memmap_index][index_in_memmap]
+        
+        img_emb = th.from_numpy(img_emb)
+        img_emb = (img_emb - self.img_emb_mean)/self.img_emb_std  
+
+        txt_emb = th.from_numpy(txt_emb).float()
+        txt_emb = (txt_emb - self.txt_emb_mean)/self.txt_emb_std  
+
+        return img_emb, txt_emb
+
+
+class CocoDataset(Dataset):
+
+    def __init__(self, txt_embeddings, img_embeddings):
+        self.num_captions = 5
+        self.txt_embeddings = txt_embeddings
+        self.img_embeddings = img_embeddings
+
+        self.img_emb_mean = np.load(EMBEDDING_IMAGE_MEAN_PATH)   
+        self.img_emb_std = np.load(EMBEDDING_IMAGE_STD_PATH)
+        self.txt_emb_mean = np.load(EMBEDDING_CAPTION_MEAN_PATH)   
+        self.txt_emb_std = np.load(EMBEDDING_CAPTION_STD_PATH)
+
+    def __len__(self):
+        return self.img_embeddings.shape[0]
+    
+    def __getitem__(self, ind):
+        # Get a random caption among the available ones
+        txt_embedding = self.txt_embeddings[ind][np.random.randint(self.num_captions)]
+        txt_embedding = (txt_embedding - self.txt_emb_mean)/self.txt_emb_std
+        img_embedding = self.img_embeddings[ind]
+        img_embedding = (img_embedding - self.img_emb_mean)/self.img_emb_std
+        return th.from_numpy(txt_embedding).float(), th.from_numpy(img_embedding).float()
 
 
 def get_iterator(dataloader):
