@@ -18,14 +18,18 @@ from guided_diffusion.script_util import (
     args_to_dict,
 )
 from guided_diffusion.mlp import MLP_mixer
+from guided_diffusion.dataset_helpers import (
+    EMBEDDING_IMAGE_MEAN_PATH,
+    EMBEDDING_IMAGE_STD_PATH,
+    EMBEDDING_CAPTION_MEAN_PATH,
+    EMBEDDING_CAPTION_STD_PATH,
+)
 
-txt_mean = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_mean.npy")
-txt_std = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt_std.npy")
-img_mean_mlp = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy")
-img_std_mlp = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img_mean.npy")
 
-img_mean_dif = np.load("../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy")
-img_std_dif = np.load("../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy")
+txt_mean = np.load(EMBEDDING_CAPTION_MEAN_PATH)
+txt_std = np.load(EMBEDDING_CAPTION_STD_PATH)
+img_mean = np.load(EMBEDDING_IMAGE_MEAN_PATH)
+img_std = np.load(EMBEDDING_IMAGE_STD_PATH)
 
 def main():
     args = create_argparser().parse_args()
@@ -45,13 +49,11 @@ def main():
 
     logger.log("loading MLP model...")
     checkpoint = th.load(args.mlp_checkpoint)
-    model = MLP_mixer(emb_dim=args.emb_dim, width=512, num_layers=8, dropout=0.3).to(device)
+    model = MLP_mixer(emb_dim=args.emb_dim, width=512, num_layers=30, dropout=0.1).to(device)
     model.load_state_dict(checkpoint)
 
     logger.log("text embedding to image embedding...")
     img_embs = model(txt_embs).cpu().detach().numpy()
-    img_embs = img_embs * img_std_mlp + img_mean_mlp
-    img_embs = (img_embs - img_mean_dif)/img_std_dif
     img_embs = th.from_numpy(img_embs).float().to(device)
 
     logger.log("loading diffusion model...")
