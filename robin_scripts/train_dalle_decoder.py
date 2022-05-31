@@ -54,9 +54,9 @@ def main():
     cc3m_dataset = CCDataset(num_shard, image_folder_path, embeddings_folder_path, transform=transform)
 
     logger.log("loading cc12m dataset...")
-    num_shard = 1242
-    image_folder_path = "../../../../mlodata1/roazbind/cc12m/images_64"
-    embeddings_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/images"
+    num_shard = 125 # 1242
+    image_folder_path = "../../../../mlodata1/roazbind/cc12m/images_64_less_shards"
+    embeddings_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/images_less_shards"
     cc12m_dataset = CCDataset(num_shard, image_folder_path, embeddings_folder_path, transform=transform)
 
     logger.log("loading ImageNet dataset...")
