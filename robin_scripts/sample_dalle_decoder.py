@@ -33,14 +33,6 @@ def main():
 
     dist_util.setup_dist()
     logger.configure(dir=args.out_path)
-
-    if args.image_guidance_path is not None:
-        image_guidance = Image.open(args.image_guidance_path)
-        image_guidance = np.array(image_guidance).transpose((2, 0, 1))
-        image_guidance = image_guidance / 127.5 - 1
-        image_guidance = th.from_numpy(image_guidance).to("cuda:0").float()
-    else:
-        image_guidance = None
     
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
@@ -54,6 +46,14 @@ def main():
         model.convert_to_fp16()
     model.eval()
 
+    if args.image_guidance_path is not None:
+        image_guidance = Image.open(args.image_guidance_path)
+        image_guidance = np.array(image_guidance).transpose((2, 0, 1))
+        image_guidance = image_guidance / 127.5 - 1
+        image_guidance = th.from_numpy(image_guidance).to("cuda:0").float()
+    else:
+        image_guidance = None
+
     # img_emb = np.load("../images/other/corgi_hat_embedding.npy")
     img_emb = np.load(EMBEDDING_PATH)[args.img_id]
 
@@ -62,22 +62,30 @@ def main():
     img_emb = (img_emb - mean)/std
     img_emb = th.from_numpy(img_emb).to("cuda:0").float()
 
-    def model_fn(x, t, img_emb):
+    def model_fn(x, t, img_emb, diffusion):
         if args.guidance_scale is None:
             return model(x, t, img_emb=img_emb)
         else:
-            # Classifier-free guidance
+            # Classifier-free guidance + dynamic thresholding
             cond_output = model(x, t, img_emb=img_emb)
             uncond_output = model(x, t, img_emb=img_emb * 0)
             cond_eps, cond_var = th.split(cond_output, cond_output.shape[1] // 2, dim=1)
             uncond_eps, _ = th.split(uncond_output, uncond_output.shape[1] // 2, dim=1)
             eps = uncond_eps + float(args.guidance_scale) * (cond_eps - uncond_eps)
+            if args.dynamic_thresholding == True:
+                x_0 = diffusion._predict_xstart_from_eps(x, t, eps)
+                s = th.quantile(th.abs(x_0).flatten(1), 0.995, dim=1, keepdim=False)
+                s = th.maximum(s, th.ones(s.shape).to("cuda:0"))[:, None, None, None]
+                x_0 = th.clamp(x_0, -s, s) / s
+                eps = diffusion._predict_eps_from_xstart(x, t, x_0)
+
         return th.cat([eps, cond_var], dim=1)
 
     logger.log("sampling...")
     all_images = []
     model_kwargs = {}
     model_kwargs["img_emb"] = img_emb
+    model_kwargs["diffusion"] = diffusion
     while len(all_images) * args.batch_size < args.num_samples:
         sample_fn = (
             diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
@@ -90,7 +98,8 @@ def main():
             cond_fn=None,
             device=dist_util.dev(),
             image_guidance=image_guidance,
-            image_guidance_scale=args.image_guidance_scale
+            image_guidance_scale=args.image_guidance_scale,
+            latent_save_interval=args.latent_save_interval
         )
         sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
         sample = sample.permute(0, 2, 3, 1)
@@ -129,8 +138,11 @@ def create_argparser():
         out_path="",
         img_id=0,
         guidance_scale=None,
+        dynamic_thresholding=False,
         image_guidance_path=None,
-        image_guidance_scale=0.0
+        image_guidance_scale=0.01,
+        image_guidance_decay="linear",
+        latent_save_interval=None,
     )
     defaults.update(model_and_diffusion_defaults())
     defaults.update(classifier_defaults())

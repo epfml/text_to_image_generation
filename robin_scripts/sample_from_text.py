@@ -74,16 +74,23 @@ def main():
     else:
         image_guidance = None
 
-    def model_fn(x, t, img_emb):
+    def model_fn(x, t, img_emb, diffusion):
         if args.guidance_scale is None:
             return model(x, t, img_emb=img_emb)
         else:
-            # Classifier-free guidance
+            # Classifier-free guidance + dynamic thresholding
             cond_output = model(x, t, img_emb=img_emb)
             uncond_output = model(x, t, img_emb=img_emb * 0)
             cond_eps, cond_var = th.split(cond_output, cond_output.shape[1] // 2, dim=1)
             uncond_eps, _ = th.split(uncond_output, uncond_output.shape[1] // 2, dim=1)
             eps = uncond_eps + float(args.guidance_scale) * (cond_eps - uncond_eps)
+            if args.dynamic_thresholding == True:
+                x_0 = diffusion._predict_xstart_from_eps(x, t, eps)
+                s = th.quantile(th.abs(x_0).flatten(1), 0.995, dim=1, keepdim=False)
+                s = th.maximum(s, th.ones(s.shape).to("cuda:0"))[:, None, None, None]
+                x_0 = th.clamp(x_0, -s, s) / s
+                eps = diffusion._predict_eps_from_xstart(x, t, x_0)
+
         return th.cat([eps, cond_var], dim=1)
 
     logger.log("sampling...")
@@ -97,6 +104,7 @@ def main():
         all_images = []
         model_kwargs = {}
         model_kwargs["img_emb"] = img_emb
+        model_kwargs["diffusion"] = diffusion
         while len(all_images) * args.batch_size < args.num_samples:
             sample_fn = (
                 diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
@@ -154,6 +162,7 @@ def create_argparser():
         model_path="",
         out_path="",
         guidance_scale=None,
+        dynamic_thresholding=False,
         image_guidance_path=None,
         image_guidance_scale=0.01,
         image_guidance_decay="linear",
