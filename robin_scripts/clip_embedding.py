@@ -2,7 +2,7 @@ import sys
 import argparse
 
 import setGPU
-import torch
+import torch as th
 import clip
 from PIL import Image
 import numpy as np
@@ -13,14 +13,15 @@ sys.path.append("..")
 from guided_diffusion.script_util import add_dict_to_argparser
 
 
-# Load model
-device = "cuda" if torch.cuda.is_available() else "cpu"
+# Load CLIP model
+device = "cuda" if th.cuda.is_available() else "cpu"
 model, preprocess = clip.load("ViT-B/32", device=device)
 
 
 def main():
     args = create_argparser().parse_args()
 
+    # All the available datasets
     datasets = {"imagenet": imagenet_emb,
                  "coco": coco_emb,
                  "cc3m": cc3m_emb,
@@ -33,6 +34,7 @@ def main():
 
 
 def imagenet_emb():
+    """Produce and save the CLIP image embeddings of the ImageNet dataset."""
 
     img_size = 64
     img_size2 = img_size ** 2
@@ -48,7 +50,7 @@ def imagenet_emb():
         print(f"Data with shape: {data.shape}")
 
         embeddings = []
-        with torch.no_grad():
+        with th.no_grad():
             for j in range(len(data)):
                 if j % 25000 == 0:
                     print(f"Process image {j + 1}")
@@ -61,6 +63,8 @@ def imagenet_emb():
 
 
 def coco_emb():
+    """Produce and save the CLIP image et text embeddings of the COCO dataset."""
+
 
     print("Processing train set")
     data = dset.CocoCaptions(root ="../../../../mlodata1/roazbind/coco/train2014", 
@@ -68,7 +72,7 @@ def coco_emb():
 
     img_embeddings = []
     txt_embeddings = []
-    with torch.no_grad():
+    with th.no_grad():
         for j in range(len(data)):
 
             if j % 10000 == 0:
@@ -94,7 +98,7 @@ def coco_emb():
 
     img_embeddings = []
     txt_embeddings = []
-    with torch.no_grad():
+    with th.no_grad():
         for j in range(len(data)):
             if j % 5000 == 0:
                 print(f"Process image {j + 1}")
@@ -110,49 +114,55 @@ def coco_emb():
 
 
 def cc3m_emb():
+    """Produce and save the CLIP image and text embeddings of the CC3M dataset."""
+
 
     num_shard = 331
     num_samples = 0
-    with torch.no_grad():
+    with th.no_grad():
         for i in range(1, num_shard + 1):
             print(f"shard {i}")
             url = f"../../../../mlodata1/roazbind/cc3m/images_256/00{str(i).zfill(3)}.tar"
             
-            img_embeddings, txt_embeddings = ccm_helper(url)
+            img_embeddings, txt_embeddings = cc_helper(url)
       
             num_samples += len(img_embeddings)
-            print(len(img_embeddings))
+            print(f"Added {len(img_embeddings)} extra embeddings")
 
             np.save(f"../../../../mlodata1/roazbind/cc3m/embeddings/captions/00{str(i).zfill(3)}.npy", txt_embeddings)
             np.save(f"../../../../mlodata1/roazbind/cc3m/embeddings/images/00{str(i).zfill(3)}.npy", img_embeddings)
-    print(num_samples)
+    print(f"total number of samples: {num_samples}")
 
 
 def cc12m_emb():
+    """Produce and save the CLIP image and text embeddings of the CC12M dataset."""
+
 
     num_shard = 1242
     num_samples = 0
-    with torch.no_grad():
+    with th.no_grad():
         for i in range(1, num_shard + 1):
             print(f"shard {i}")
             url = f"../../../../mlodata1/roazbind/cc12m/images_256/0{str(i).zfill(4)}.tar"
             
-            img_embeddings, txt_embeddings = ccm_helper(url)
+            img_embeddings, txt_embeddings = cc_helper(url)
       
             num_samples += len(img_embeddings)
-            print(len(img_embeddings))
+            print(f"Added {len(img_embeddings)} extra embeddings")
 
             np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/captions/0{str(i).zfill(4)}.npy", txt_embeddings)
             np.save(f"../../../../mlodata1/roazbind/cc12m/embeddings/images/0{str(i).zfill(4)}.npy", img_embeddings)
-    print(num_samples)
+    print(f"total number of samples: {num_samples}")
 
 
-def ccm_helper(url):
+def cc_helper(url):
+    """Helper method for the CC3M and CC12M dataset. I returns the CLIP image and text embeddings."""
+
 
     dataset = wds.WebDataset(url).decode("pil").to_tuple("jpg;png", "json", "txt").map_tuple(preprocess, identity, identity)
             
     batch_size = 512
-    dataloader = torch.utils.data.DataLoader(dataset.batched(batch_size), num_workers=4, batch_size=None)
+    dataloader = th.utils.data.DataLoader(dataset.batched(batch_size), num_workers=4, batch_size=None)
 
     img_embeddings = []
     txt_embeddings = []
@@ -167,15 +177,17 @@ def ccm_helper(url):
 
 
 def identity(x):
-        return x
+    return x
 
 
 def get_image_embedding(image):
+    """Get the CLIP image embedding of the image."""
     image = preprocess(image).unsqueeze(0).to(device)
     return model.encode_image(image).cpu().numpy().squeeze()
 
 
 def get_text_embedding(captions):
+    """Get the CLIP text embeddings of the captions."""
     captions = clip.tokenize(captions, truncate=True).to(device)
     return model.encode_text(captions).cpu().numpy().squeeze()
 
