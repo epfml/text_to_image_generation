@@ -1,6 +1,6 @@
 """
 Generate a large batch of samples from a super resolution model, given a batch
-of samples from a regular model from image_sample.py.
+of samples from a regular model.
 """
 
 import argparse
@@ -12,6 +12,7 @@ import blobfile as bf
 import numpy as np
 import torch as th
 import torch.distributed as dist
+from PIL import Image
 
 sys.path.append("..")
 from guided_diffusion import dist_util, logger
@@ -27,7 +28,7 @@ def main():
     args = create_argparser().parse_args()
 
     dist_util.setup_dist()
-    logger.configure()
+    logger.configure(dir=args.out_path)
 
     logger.log("creating model...")
     model, diffusion = sr_create_model_and_diffusion(
@@ -42,7 +43,7 @@ def main():
     model.eval()
 
     logger.log("loading data...")
-    data = load_data_for_worker(args.base_samples, args.batch_size, args.class_cond)
+    data = load_data_for_worker(args.base_samples, args.batch_size, args.class_cond, args.label)
 
     logger.log("creating samples...")
     all_images = []
@@ -59,11 +60,6 @@ def main():
         sample = sample.permute(0, 2, 3, 1)
         sample = sample.contiguous()
 
-        from PIL import Image
-        i=Image.fromarray(sample.cpu().numpy().squeeze(),"RGB")
-        i.show()
-        i.save("images/baboon_256.png")
-
         all_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
         dist.all_gather(all_samples, sample)  # gather not supported with NCCL
         for sample in all_samples:
@@ -77,17 +73,20 @@ def main():
         out_path = os.path.join(logger.get_dir(), f"samples_{shape_str}.npz")
         logger.log(f"saving to {out_path}")
         np.savez(out_path, arr)
+        for i, a in enumerate(arr):
+            out_path = os.path.join(logger.get_dir(), f"sample_{i}.png")
+            Image.fromarray(a,"RGB").save(out_path)
 
     dist.barrier()
     logger.log("sampling complete")
 
 
-def load_data_for_worker(base_samples, batch_size, class_cond):
+def load_data_for_worker(base_samples, batch_size, class_cond, label=None):
     with bf.BlobFile(base_samples, "rb") as f:
         obj = np.load(f)
-        image_arr = np.array([obj["arr_0"]]) # modified by Robin
+        image_arr = obj["arr_0"]
         if class_cond:
-            label_arr = [372]  # modified by Robin
+            label_arr = [int(label)] * len(image_arr)
     rank = dist.get_rank()
     num_ranks = dist.get_world_size()
     buffer = []
@@ -116,6 +115,8 @@ def create_argparser():
         use_ddim=False,
         base_samples="",
         model_path="",
+        out_path="",
+        label=None
     )
     defaults.update(sr_model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
