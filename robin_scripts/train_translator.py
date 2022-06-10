@@ -10,13 +10,14 @@ from torch.utils.data import DataLoader, ConcatDataset
 sys.path.append("..")
 from guided_diffusion import dist_util, logger
 from guided_diffusion.script_util import (
-    add_dict_to_argparser
+    add_dict_to_argparser,
+    RANDOM_SEED
 )
 from guided_diffusion.mlp import MLP_mixer
 from guided_diffusion.dataset_helpers import CCCaptionsDataset, CocoDataset
 
-RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
+th.manual_seed(RANDOM_SEED)
 
 num_captions = 5
 

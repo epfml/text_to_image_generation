@@ -5,6 +5,8 @@ from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 from .unet import SuperResModel, UNetModel, EncoderUNetModel
 
+RANDOM_SEED = 42
+
 
 def diffusion_defaults():
     """

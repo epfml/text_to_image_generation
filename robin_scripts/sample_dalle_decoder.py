@@ -22,7 +22,11 @@ from guided_diffusion.script_util import (
     create_model_and_diffusion,
     add_dict_to_argparser,
     args_to_dict,
+    RANDOM_SEED
 )
+
+np.random.seed(RANDOM_SEED)
+th.manual_seed(RANDOM_SEED)
 
 EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
 EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy"
