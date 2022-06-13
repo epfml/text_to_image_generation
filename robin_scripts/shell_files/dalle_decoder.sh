@@ -1,8 +1,8 @@
 cd ..
-
+: '
 python train_dalle_decoder.py \
     --schedule_sampler uniform \
-    --lr 6e-5 \
+    --lr 1e-4 \
     --weight_decay 0 \
     --lr_anneal_steps 800000 \
     --batch_size 16 \
@@ -12,8 +12,8 @@ python train_dalle_decoder.py \
     --save_interval 100000 \
     --use_fp16 False \
     --fp16_scale_growth 1e-3 \
-    --gradient_clipping 0.01 \
-    --model_name diffusion_dalle_decoder_final_2_lr \
+    --gradient_clipping 0.008 \
+    --model_name final_3_1 \
     --image_size 64 \
     --num_channels 256 \
     --num_res_blocks 3 \
@@ -37,18 +37,20 @@ python train_dalle_decoder.py \
     --predict_xstart False \
     --rescale_timesteps False \
     --rescale_learned_sigmas False \
-    --resume_checkpoint ../log/diffusion_dalle_decoder_final/model400000.pt
+    --resume_checkpoint ../log/diffusion/final_3/model100000.pt
 
-: '
-python ../sample_dalle_decoder.py \
+cd shell_files
+'
+python sample_dalle_decoder.py \
     --clip_denoised True \
-    --num_samples 1 \
-    --batch_size 1 \
+    --num_samples 10 \
+    --batch_size 10 \
     --use_ddim False \
-    --model_path ../log/diffusion/diffusion_dalle_decoder_final_2_lr/ema_0.9999_800000.pt \
-    --out_path ../images/imagenet64/test \
+    --model_path ../log/diffusion/final_3_1/ema_0.9999_500000.pt \
+    --out_path ../images/imagenet64/final_3_1/guepard/500000_8 \
     --img_id 3 \
-    --guidance_scale 4 \
+    --guidance_scale 8 \
+    --dynamic_thresholding True \
     --image_size 64 \
     --num_channels 256 \
     --num_res_blocks 3 \
@@ -75,6 +77,3 @@ python ../sample_dalle_decoder.py \
     --rescale_learned_sigmas False \
     #--image_guidance_path ../images/imagenet64/groundtruth/image0.jpg \
     #--image_guidance_scale 0.003 \
-'
-
-cd shell_files
