@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import sys
 
 import setGPU
@@ -16,6 +17,7 @@ from guided_diffusion.script_util import (
     create_model_and_diffusion,
     add_dict_to_argparser,
     args_to_dict,
+    RANDOM_SEED
 )
 from guided_diffusion.mlp import MLP_mixer
 from guided_diffusion.dataset_helpers import (
@@ -25,6 +27,8 @@ from guided_diffusion.dataset_helpers import (
     EMBEDDING_CAPTION_STD_PATH,
 )
 
+np.random.seed(RANDOM_SEED)
+th.manual_seed(RANDOM_SEED)
 
 txt_mean = np.load(EMBEDDING_CAPTION_MEAN_PATH)
 txt_std = np.load(EMBEDDING_CAPTION_STD_PATH)
@@ -42,7 +46,15 @@ def main():
     model, _ = clip.load("ViT-B/32", device=device)
 
     logger.log("encoding caption...")
-    captions = clip.tokenize(args.captions).to(device)
+
+    captions = []
+    with open(args.captions_file) as f:
+        for line in f:
+            captions.append(line.strip('\n'))
+    num_captions = len(captions)
+    print(captions)
+
+    captions = clip.tokenize(captions).to(device)
     txt_embs = model.encode_text(captions).cpu().detach().numpy().squeeze()
     txt_embs = (txt_embs - txt_mean)/txt_std
     txt_embs = th.from_numpy(txt_embs).float().to(device)
@@ -95,58 +107,57 @@ def main():
 
     logger.log("sampling...")
 
-    for i, img_emb in enumerate(img_embs):
-        if len(img_emb.shape) == 0:
-            # Only one embedding was given
-            img_emb = img_embs
+    img_embs = th.repeat_interleave(img_embs, args.samples_per_caption, dim=0)
+
+    all_images = []
+    model_kwargs = {}
+    model_kwargs["img_emb"] = img_embs
+    model_kwargs["diffusion"] = diffusion
+
+    while len(all_images) * args.batch_size < num_captions * args.samples_per_caption:
+
+        remaining_samples = num_captions * args.samples_per_caption - (len(all_images) + 1) * args.batch_size
+        if remaining_samples < 0:
+            # Total number of images is not a multiple of batch_size
+            batch_size = args.batch_size - remaining_samples
         else:
-            logger.log(f"caption {i}...")
-        all_images = []
-        model_kwargs = {}
-        model_kwargs["img_emb"] = img_emb
-        model_kwargs["diffusion"] = diffusion
-        while len(all_images) * args.batch_size < args.num_samples:
-            sample_fn = (
-                diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
-            )
-            sample = sample_fn(
-                model_fn,
-                (args.batch_size, 3, args.image_size, args.image_size),
-                clip_denoised=args.clip_denoised,
-                model_kwargs=model_kwargs,
-                cond_fn=None,
-                device=dist_util.dev(),
-                image_guidance=image_guidance,
-                image_guidance_scale=args.image_guidance_scale
-            )
-            sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
-            sample = sample.permute(0, 2, 3, 1)
-            sample = sample.contiguous()
-            np.set_printoptions(threshold=np.inf)
+            batch_size = args.batch_size
 
-            gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
-            dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
-            all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
-            logger.log(f"created {len(all_images) * args.batch_size} samples")
+        sample_fn = (
+            diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
+        )
+        sample = sample_fn(
+            model_fn,
+            (batch_size, 3, args.image_size, args.image_size),
+            clip_denoised=args.clip_denoised,
+            model_kwargs=model_kwargs,
+            cond_fn=None,
+            device=dist_util.dev(),
+            image_guidance=image_guidance,
+            image_guidance_scale=args.image_guidance_scale
+        )
+        sample = ((sample + 1) * 127.5).clamp(0, 255).to(th.uint8)
+        sample = sample.permute(0, 2, 3, 1)
+        sample = sample.contiguous()
+        np.set_printoptions(threshold=np.inf)
 
-        arr = np.concatenate(all_images, axis=0)
-        arr = arr[: args.num_samples]
-        if dist.get_rank() == 0:
-            if len(img_embs) > 1:
-                folder = f"caption_{i}/"
-                os.makedirs(os.path.join(logger.get_dir(), f"{folder}"), exist_ok=True)
-            else:
-                folder = ""
-            txt_file = f"{os.path.join(logger.get_dir(), f'{folder}')}/caption.txt"
-            open(txt_file,'w').write(args.captions[i])
-            shape_str = "x".join([str(x) for x in arr.shape])
-            out_path = os.path.join(logger.get_dir(), f"{folder}samples_{shape_str}.npz")
-            logger.log(f"saving to {out_path}")
-            np.savez(out_path, arr)
-            
-            for j, a in enumerate(arr):
-                out_path = os.path.join(logger.get_dir(), f"{folder}sample_{j}.png")
-                Image.fromarray(a,"RGB").save(out_path)
+        gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
+        dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
+        all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
+        logger.log(f"created {len(all_images) * args.batch_size - (args.batch_size - batch_size)} samples")
+
+    arr = np.concatenate(all_images, axis=0)
+    if dist.get_rank() == 0:
+        
+        shape_str = "x".join([str(x) for x in arr.shape])
+        out_path = os.path.join(logger.get_dir(), f"samples_{shape_str}.npz")
+        logger.log(f"saving to {out_path}")
+        np.savez(out_path, arr)
+        shutil.copy(args.captions_file, logger.get_dir())
+        
+        for j, a in enumerate(arr):
+            out_path = os.path.join(logger.get_dir(), f"sample_{j}.png")
+            Image.fromarray(a,"RGB").save(out_path)
 
     dist.barrier()
     logger.log("sampling complete")
@@ -154,9 +165,9 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        captions=["A picture of a dog.", "A picture of a cat"],
+        captions_file="captions.txt",
         clip_denoised=True,
-        num_samples=10000,
+        samples_per_caption=10,
         batch_size=16,
         use_ddim=False,
         model_path="",
