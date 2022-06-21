@@ -45,14 +45,14 @@ def main():
     device = "cuda" if th.cuda.is_available() else "cpu"
     model, _ = clip.load("ViT-B/32", device=device)
 
-    logger.log("encoding caption...")
+    logger.log("encoding captions:")
 
     captions = []
     with open(args.captions_file) as f:
         for line in f:
             captions.append(line.strip('\n'))
     num_captions = len(captions)
-    print(captions)
+    logger.log(captions)
 
     captions = clip.tokenize(captions).to(device)
     txt_embs = model.encode_text(captions).cpu().detach().numpy().squeeze()
@@ -64,7 +64,7 @@ def main():
     model = MLP_mixer(emb_dim=args.emb_dim, width=512, num_layers=30, dropout=0.1).to(device)
     model.load_state_dict(checkpoint)
 
-    logger.log("text embedding to image embedding...")
+    logger.log("text embeddings to image embeddings...")
     img_embs = model(txt_embs).cpu().detach().numpy()
     img_embs = th.from_numpy(img_embs).float().to(device)
 
@@ -111,17 +111,19 @@ def main():
 
     all_images = []
     model_kwargs = {}
-    model_kwargs["img_emb"] = img_embs
     model_kwargs["diffusion"] = diffusion
-
+    i = 0
     while len(all_images) * args.batch_size < num_captions * args.samples_per_caption:
 
         remaining_samples = num_captions * args.samples_per_caption - (len(all_images) + 1) * args.batch_size
         if remaining_samples < 0:
             # Total number of images is not a multiple of batch_size
-            batch_size = args.batch_size - remaining_samples
+            batch_size = args.batch_size + remaining_samples
         else:
             batch_size = args.batch_size
+
+        model_kwargs["img_emb"] = img_embs[i:i+batch_size]
+        i += batch_size
 
         sample_fn = (
             diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
