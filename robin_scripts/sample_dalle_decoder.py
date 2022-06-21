@@ -24,13 +24,16 @@ from guided_diffusion.script_util import (
     args_to_dict,
     RANDOM_SEED
 )
+from guided_diffusion.dataset_helpers import (
+    EMBEDDING_IMAGE_MEAN_PATH,
+    EMBEDDING_IMAGE_STD_PATH,
+    EMBEDDING_IMAGE_COCOVAL_PATH,
+    EMBEDDING_IMAGENET_PATH
+)
 
 np.random.seed(RANDOM_SEED)
 th.manual_seed(RANDOM_SEED)
 
-EMBEDDING_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding.npy"
-EMBEDDING_MEAN_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_mean.npy"
-EMBEDDING_STD_PATH = "../../../../mlodata1/roazbind/imagenet64/train_embedding_std.npy"
 
 def main():
     args = create_argparser().parse_args()
@@ -59,10 +62,13 @@ def main():
         image_guidance = None
 
     # img_emb = np.load("../images/other/corgi_hat_embedding.npy")
-    img_emb = np.load(EMBEDDING_PATH)[args.img_id]
-
-    mean = np.load(EMBEDDING_MEAN_PATH)   
-    std = np.load(EMBEDDING_STD_PATH)
+    #img_emb = np.load(EMBEDDING_IMAGENET_PATH)[args.img_id]
+    img_emb = np.load(EMBEDDING_IMAGE_COCOVAL_PATH)
+    samples_list = np.random.choice(len(img_emb), 1000)
+    logger.log(f"Will sample images at indices {samples_list} of COCO.")
+    img_emb = img_emb[samples_list]
+    mean = np.load(EMBEDDING_IMAGE_MEAN_PATH)   
+    std = np.load(EMBEDDING_IMAGE_STD_PATH)
     img_emb = (img_emb - mean)/std
     img_emb = th.from_numpy(img_emb).to("cuda:0").float()
 
@@ -90,7 +96,10 @@ def main():
     model_kwargs = {}
     model_kwargs["img_emb"] = img_emb
     model_kwargs["diffusion"] = diffusion
+    i = 0
     while len(all_images) * args.batch_size < args.num_samples:
+        model_kwargs["img_emb"] = img_emb[i:i+args.batch_size]
+        i += args.batch_size
         sample_fn = (
             diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
         )
