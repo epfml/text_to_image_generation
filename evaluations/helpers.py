@@ -5,7 +5,7 @@ import torchvision.datasets as dset
 from PIL import ImageOps
 
 
-def process_coco(num_samples=10, new_size=64, random_seed=42):
+def process_coco(num_samples=50, new_size=256, random_seed=42, border=True):
     """Get num_samples images and captions from the COCO validation set. The images
        are of size new_size x new_size."""
 
@@ -20,19 +20,19 @@ def process_coco(num_samples=10, new_size=64, random_seed=42):
     images_list = []
     for i, j in enumerate(samples_list):
             image, captions = data[j]
-            image = resize_image(image, new_size)
-            image.save(f"samples/images/image_{i}.png")
+            image = resize_image(image, new_size, border=border)
+            image.save(f"samples/images{new_size}/image_{i}.png")
             images_list.append(np.array(image))
             captions_list.append(captions[captions_index_list[i]])
 
-    np.savez("samples/val_images.npz", np.array(images_list))
-    with open("samples/val_captions.txt", 'w') as f:
+    np.savez(f"samples/val_images_{new_size}.npz", np.array(images_list))
+    with open("samples/crop/val_captions.txt", 'w') as f:
         for caption in captions_list:
             f.write("%s\n" % caption)
 
 
 def resize_image(image, new_size, border=True):
-    """Resize image to new size. If border is True, add white borders to the image, otherwise crop the image."""
+    """Resize image to new size. If border is True, add white borders to the image, otherwise center and crop the image."""
 
     width, height = image.size
 
@@ -61,4 +61,4 @@ def resize_image(image, new_size, border=True):
 
 
 if __name__ == "__main__":
-    process_coco()
+    process_coco(200)
