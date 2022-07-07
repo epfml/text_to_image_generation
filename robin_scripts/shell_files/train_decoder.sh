@@ -1,14 +1,19 @@
 cd ..
 
-python sample_from_text.py \
-    --captions_file captions.txt \
-    --samples_per_caption 10 \
-    --batch_size 20 \
-    --use_ddim False \
-    --model_path ../log/diffusion/final_3_1/ema_0.9999_500000.pt \
-    --out_path .. \
-    --guidance_scale 6 \
-    --dynamic_thresholding True \
+python train_dalle_decoder.py \
+    --schedule_sampler uniform \
+    --lr 3e-4 \
+    --weight_decay 0 \
+    --lr_anneal_steps 800000 \
+    --batch_size 16 \
+    --microbatch -1 \
+    --ema_rate 0.9999 \
+    --log_interval 10 \
+    --save_interval 100000 \
+    --use_fp16 False \
+    --fp16_scale_growth 1e-3 \
+    --gradient_clipping 0.008 \
+    --model_name final_3_1 \
     --image_size 64 \
     --num_channels 256 \
     --num_res_blocks 3 \
@@ -23,7 +28,6 @@ python sample_from_text.py \
     --use_checkpoint False \
     --use_scale_shift_norm True \
     --resblock_updown True \
-    --use_fp16 False \
     --use_new_attention_order False \
     --img_emb_dim 512 \
     --learn_sigma True \
@@ -33,8 +37,6 @@ python sample_from_text.py \
     --predict_xstart False \
     --rescale_timesteps False \
     --rescale_learned_sigmas False \
-    --mlp_checkpoint ../log/MLP/final_7/model_ES.pt \
-    #--image_guidance_path ../images/other/algebra/tree_64.png \
-    #--image_guidance_scale 0.005 \
+    #--resume_checkpoint ../log/diffusion/final_3/model100000.pt
 
 cd shell_files

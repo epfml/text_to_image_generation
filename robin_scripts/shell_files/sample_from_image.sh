@@ -1,12 +1,13 @@
 cd ..
 
-python sample_from_text.py \
-    --captions_file captions.txt \
-    --samples_per_caption 10 \
+python sample_dalle_decoder.py \
+    --clip_denoised True \
+    --num_samples 20 \
     --batch_size 20 \
     --use_ddim False \
     --model_path ../log/diffusion/final_3_1/ema_0.9999_500000.pt \
     --out_path .. \
+    --img_id 3 \
     --guidance_scale 6 \
     --dynamic_thresholding True \
     --image_size 64 \
@@ -33,8 +34,8 @@ python sample_from_text.py \
     --predict_xstart False \
     --rescale_timesteps False \
     --rescale_learned_sigmas False \
-    --mlp_checkpoint ../log/MLP/final_7/model_ES.pt \
-    #--image_guidance_path ../images/other/algebra/tree_64.png \
+    #--image_guidance_path ../images/other/corgi.png \
     #--image_guidance_scale 0.005 \
+    #--image_guidance_decay linear \
 
 cd shell_files

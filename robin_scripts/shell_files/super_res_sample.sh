@@ -1,13 +1,13 @@
 cd ..
 
-python super_res_sample_test.py \
+python sample_upsampler.py \
     --clip_denoised True \
-    --num_samples 1 \
-    --batch_size 1 \
+    --num_samples 10 \
+    --batch_size 10 \
     --use_ddim False \
-    --base_samples ../images/imagenet64/image3_not_rotated_200000/samples_10x64x64x3.npz \
+    --base_samples ../images/pipeline/final_plate/samples_4x64x64x3.npz \
     --model_path ../openai_models/64_256_upsampler.pt \
-    --out_path ../images/imagenet256/image3_final \
+    --out_path .. \
     --num_channels 192 \
     --num_res_blocks 2 \
     --num_heads 4 \
@@ -29,7 +29,7 @@ python super_res_sample_test.py \
     --rescale_learned_sigmas False \
     --large_size 256 \
     --small_size 64 \
-    --label 288 \
+    --label 436 \
 #    --use_checkpoint USE_CHECKPOINT \
 #    --timestep_respacing TIMESTEP_RESPACING \
 
