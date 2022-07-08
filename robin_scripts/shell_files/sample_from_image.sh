@@ -1,13 +1,13 @@
 cd ..
 
-python sample_dalle_decoder.py \
+python sample_from_image.py \
     --clip_denoised True \
-    --num_samples 20 \
-    --batch_size 20 \
+    --samples_per_emb 5 \
+    --batch_size 5 \
     --use_ddim False \
     --model_path ../log/diffusion/final_3_1/ema_0.9999_500000.pt \
     --out_path .. \
-    --img_id 3 \
+    --img_emb_path "../images/other/corgi_hat_embedding.npy" \
     --guidance_scale 6 \
     --dynamic_thresholding True \
     --image_size 64 \

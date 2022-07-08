@@ -18,7 +18,6 @@ sys.path.append("..")
 from guided_diffusion import dist_util, logger
 from guided_diffusion.script_util import (
     model_and_diffusion_defaults,
-    classifier_defaults,
     create_model_and_diffusion,
     add_dict_to_argparser,
     args_to_dict,
@@ -26,9 +25,7 @@ from guided_diffusion.script_util import (
 )
 from guided_diffusion.dataset_helpers import (
     EMBEDDING_IMAGE_MEAN_PATH,
-    EMBEDDING_IMAGE_STD_PATH,
-    EMBEDDING_IMAGE_COCOVAL_PATH,
-    EMBEDDING_IMAGENET_PATH
+    EMBEDDING_IMAGE_STD_PATH
 )
 
 np.random.seed(RANDOM_SEED)
@@ -61,16 +58,15 @@ def main():
     else:
         image_guidance = None
 
-    # img_emb = np.load("../images/other/corgi_hat_embedding.npy")
-    #img_emb = np.load(EMBEDDING_IMAGENET_PATH)[args.img_id]
-    img_emb = np.load(EMBEDDING_IMAGE_COCOVAL_PATH)
-    samples_list = np.random.choice(len(img_emb), 1000)
-    logger.log(f"Will sample images at indices {samples_list} of COCO.")
-    img_emb = img_emb[samples_list]
+    img_emb = np.load(args.img_emb_path)
     mean = np.load(EMBEDDING_IMAGE_MEAN_PATH)   
     std = np.load(EMBEDDING_IMAGE_STD_PATH)
     img_emb = (img_emb - mean)/std
     img_emb = th.from_numpy(img_emb).to("cuda:0").float()
+
+    if len(img_emb.shape) == 1:
+        img_emb = img_emb[None, :]
+    img_emb = th.repeat_interleave(img_emb, args.samples_per_emb, dim=0)
 
     def model_fn(x, t, img_emb, diffusion):
         if args.guidance_scale is None:
@@ -94,18 +90,26 @@ def main():
     logger.log("sampling...")
     all_images = []
     model_kwargs = {}
-    model_kwargs["img_emb"] = img_emb
     model_kwargs["diffusion"] = diffusion
     i = 0
-    while len(all_images) * args.batch_size < args.num_samples:
-        model_kwargs["img_emb"] = img_emb[i:i+args.batch_size]
-        i += args.batch_size
+    while len(all_images) * args.batch_size < len(img_emb):
+
+        remaining_samples = len(img_emb) - (len(all_images) + 1) * args.batch_size
+        if remaining_samples < 0:
+            # Total number of images is not a multiple of batch_size
+            batch_size = args.batch_size + remaining_samples
+        else:
+            batch_size = args.batch_size
+
+        model_kwargs["img_emb"] = img_emb[i:i+batch_size]
+        i += batch_size
+
         sample_fn = (
             diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
         )
         sample = sample_fn(
             model_fn,
-            (args.batch_size, 3, args.image_size, args.image_size),
+            (batch_size, 3, args.image_size, args.image_size),
             clip_denoised=args.clip_denoised,
             model_kwargs=model_kwargs,
             cond_fn=None,
@@ -122,7 +126,7 @@ def main():
         gathered_samples = [th.zeros_like(sample) for _ in range(dist.get_world_size())]
         dist.all_gather(gathered_samples, sample)  # gather not supported with NCCL
         all_images.extend([sample.cpu().numpy() for sample in gathered_samples])
-        logger.log(f"created {len(all_images) * args.batch_size} samples")
+        logger.log(f"created {len(all_images) * args.batch_size - (args.batch_size - batch_size)} samples")
 
     arr = np.concatenate(all_images, axis=0)
     arr = arr[: args.num_samples]
@@ -142,14 +146,12 @@ def main():
 def create_argparser():
     defaults = dict(
         clip_denoised=True,
-        num_samples=10000,
+        samples_per_emb=10,
         batch_size=16,
         use_ddim=False,
         model_path="",
-        classifier_path="",
-        classifier_scale=1.0,
         out_path="",
-        img_id=0,
+        img_emb_path="../images/other/corgi_hat_embedding.npy",
         guidance_scale=None,
         dynamic_thresholding=False,
         image_guidance_path=None,
@@ -158,7 +160,6 @@ def create_argparser():
         latent_save_interval=None,
     )
     defaults.update(model_and_diffusion_defaults())
-    defaults.update(classifier_defaults())
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
     return parser
