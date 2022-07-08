@@ -5,10 +5,10 @@ import argparse
 import numpy as np
 import torch as th
 import torch.nn as nn
-from torch.utils.data import DataLoader, ConcatDataset
+from torch.utils.data import DataLoader, ConcatDataset, random_split
 
 sys.path.append("..")
-from guided_diffusion import dist_util, logger
+from guided_diffusion import logger
 from guided_diffusion.script_util import (
     add_dict_to_argparser,
     RANDOM_SEED
@@ -19,14 +19,11 @@ from guided_diffusion.dataset_helpers import CCCaptionsDataset, CocoDataset
 np.random.seed(RANDOM_SEED)
 th.manual_seed(RANDOM_SEED)
 
-num_captions = 5
-
 
 def main():
 
     args = create_argparser().parse_args()
     device = th.device('cuda' if th.cuda.is_available() else 'cpu')
-    # dist_util.setup_dist()
     dir = f"../log/MLP/{args.model_name}"
     os.makedirs(dir, exist_ok=True)
     logger.configure(dir=dir, format_strs=["stdout","log","csv","tensorboard"])
@@ -45,15 +42,21 @@ def main():
     txt_emb_folder_path = "../../../../mlodata1/roazbind/cc12m/embeddings/captions_less_shards"
     cc12m_dataset = CCCaptionsDataset(num_shard, img_emb_folder_path, txt_emb_folder_path)
 
-    logger.log("loading COCO dataset...")
-    train_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt.npy")
-    train_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img.npy")
-    val_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_txt.npy")
-    val_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_img.npy")
-    coco_train_set = CocoDataset(train_txt_embeddings, train_img_embeddings)
-    test_set = CocoDataset(val_txt_embeddings, val_img_embeddings)
+    if args.use_coco:
+        logger.log("loading COCO dataset...")
+        train_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_txt.npy")
+        train_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/train_embedding_img.npy")
+        val_txt_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_txt.npy")
+        val_img_embeddings = np.load(f"../../../../mlodata1/roazbind/coco/val_embedding_img.npy")
+        coco_train_set = CocoDataset(train_txt_embeddings, train_img_embeddings)
+        
+        train_set = ConcatDataset((cc3m_dataset, cc12m_dataset, coco_train_set))
+        test_set = CocoDataset(val_txt_embeddings, val_img_embeddings)
 
-    train_set = ConcatDataset((cc3m_dataset, cc12m_dataset, coco_train_set))
+    else:
+        dataset = ConcatDataset((cc3m_dataset, cc12m_dataset))
+        len_train_set = int(len(dataset)*0.95)
+        train_set, test_set = random_split(dataset, [len_train_set, len(dataset) - len_train_set])
 
     batch_size = args.batch_size
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
@@ -112,14 +115,15 @@ def main():
 def create_argparser():
     defaults = dict(
         model_name="model",
-        log_interval=1000,
-        save_interval=10000,
+        log_interval=500,
+        save_interval=200000,
+        epochs=6,
         batch_size=256,
-        weight_decay=0.04,
-        dropout=0.3,
-        epochs=1000,
-        num_layers=8,
-        emb_dim=512
+        weight_decay=0.0001,
+        dropout=0.1,
+        emb_dim=512,
+        num_layers=30,
+        use_coco=False
     )
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
