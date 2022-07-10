@@ -5,7 +5,7 @@
 
 In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of models. We also propose a new guidance method for diffusion models called *image guidance*. All the models specifications and results can be found in the `master_thesis_report.pdf`.
 
-The code is divided into three folders: *guided_diffusion*, *scripts*, and *evaluations*. The other folder named *figures* contains the figures created for the master thesis report.
+The code is divided into three folders: *guided_diffusion*, *scripts*, and *evaluations*. The other folder named *figures* contains the figures created for the master thesis report. The same seed (42) is used in all the experiments.
 
 
 ### guided_diffusion:
@@ -28,8 +28,14 @@ This folder contains all the methods to build our model, as well as helper funct
 
 ### scripts
 
-TODO
+This folder contains the different scripts to train and sample from our method. A shell file is associated to each python script which requires many arguments. In particular, it consists of the following files (sorted by relevance):
 
-Seed = 42
+- `sample_from_text.py` generates images from a set of textual captions.
+- `sample_upsampler.py` increases the resolution of the images from 64x64 to 256x256.
+- `sample_from_image.py` generates images from an image embedding.
+- `train_decoder.py` trains the image decoder.
+- `train_translator.py` trains the CLIP translator.
+- `clip_embeddings.py` creates the CLIP embeddings for a dataset.
+- `handling_images.py` creates a figure from a set of images.
 
 ### evaluations
