@@ -1,1 +1,1 @@
-python evaluator.py samples/val_images_256.npz ../images/pipeline256/coco_50/samples_50x256x256x3.npz
+python evaluator.py real.npz generated.npz
