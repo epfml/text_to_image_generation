@@ -3,7 +3,7 @@
 
 *By **Robin Zbinden** under the supervision of **Luis Barba** and **Martin Jaggi***.
 
-In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of models. We also propose a new guidance method for diffusion models called *image guidance*. All the models specifications and results can be found in the `master_thesis_report.pdf`.
+In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of model. We also propose a new guidance method for diffusion models called *image guidance*. All the models specifications and results can be found in the `master_thesis_report.pdf`.
 
 The code is divided into three folders: *guided_diffusion*, *scripts*, and *evaluations*. The other folder named *figures* contains the figures created for the master thesis report. The same seed (42) is used in all the experiments.
 
@@ -28,7 +28,7 @@ This folder contains all the methods to build our model, as well as helper funct
 
 ### scripts
 
-This folder contains the different scripts to train and sample from our method. A shell file is associated to each python script which requires many arguments. In particular, it consists of the following files (sorted by relevance):
+This folder contains the different scripts to train and sample from our method. A shell file is associated with each python script which requires many arguments. In particular, it consists of the following files (sorted by relevance):
 
 - `sample_from_text.py`: generate images from a set of textual captions.
 - `sample_upsampler.py`: increase the resolution of the images from 64x64 to 256x256.
@@ -39,3 +39,5 @@ This folder contains the different scripts to train and sample from our method. 
 - `handling_images.py`: create a figure from a set of images.
 
 ### evaluations
+
+This folder contains the methods to evaluate our method. Another `README.md` explaining the procedure to replicate the evaluations is available in this folder. 
