@@ -1,24 +1,23 @@
-# Master Thesis on Text-to-Image Generative models
+# Master Thesis on Text-to-Image Generative Models
 ## Implementing and Experimenting with Diffusion Models for Text-to-Image Generation
 
 *By **Robin Zbinden** under the supervision of **Luis Barba** and **Martin Jaggi***.
 
-In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of model. We also propose a new guidance method for diffusion models called *image guidance*. All the models specifications and results can be found in the `master_thesis_report.pdf`.
+In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of model. We also propose a new guidance method for diffusion models called *image guidance*. All the model specifications and results can be found in the `master_thesis_report.pdf`.
 
 The code is divided into three folders: *guided_diffusion*, *scripts*, and *evaluations*. The other folder named *figures* contains the figures created for the master thesis report. The same seed (42) is used in all the experiments.
-
 
 ### guided_diffusion:
 
 This folder contains all the methods to build our model, as well as helper functions to handle the datasets and to train. It is based on [openai/guided-diffusion](https://github.com/openai/guided-diffusion). In particular, it consists of the following files (sorted by relevance):
 
 - `gaussian_diffusion.py`: all the methods used to create and run diffusion processes.
-- `unet.py`: the architecture definition of the Unet diffusion model.
-- `train_util.py`: helpers function to train the different models.
-- `script_util.py`: helpers function for the scripts.
+- `unet.py`: the architecture definition of the U-Net diffusion model.
+- `train_util.py`: helper functions to train the different models.
+- `script_util.py`: helper functions for the scripts.
 - `mlp.py`: the architecture definition of the CLIP translator.
 - `losses.py`: the definitions of the different losses used to train the diffusion model.
-- `dataset_helpers.py`: helpers function to handle the datasets.
+- `dataset_helpers.py`: helper functions to handle the datasets.
 - `nn.py`: basic neural network functions.
 - `logger.py`: functions to log the different steps of training and sampling.
 - `dist_util.py`: functions to distribute the training.
