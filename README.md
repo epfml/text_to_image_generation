@@ -5,9 +5,21 @@
 
 In this project, we **implement a text-to-image generative model** based on DALL-E 2 and conduct some experiments to understand the possibilities of this type of model. We also propose a new guidance method for diffusion models called *image guidance*. All the model specifications and results can be found in the `master_thesis_report.pdf`.
 
+### How to generate images from text?
+
+1. Download the checkpoints of the image decoder, CLIP translator, and upsampler at https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing and put them into the folder *models*.
+
+2. Write the the image descriptions in captions.txt.
+
+3. Run the shell script to generate images, i.e., `. sample_from_text.sh`.
+
+4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.pt`.
+
+### Code
+
 The code is divided into three folders: *guided_diffusion*, *scripts*, and *evaluations*. The other folder named *figures* contains the figures created for the master thesis report. The same seed (42) is used in all the experiments.
 
-### guided_diffusion:
+#### guided_diffusion:
 
 This folder contains all the methods to build our model, as well as helper functions to handle the datasets and to train. It is based on [openai/guided-diffusion](https://github.com/openai/guided-diffusion). In particular, it consists of the following files (sorted by relevance):
 
@@ -25,7 +37,7 @@ This folder contains all the methods to build our model, as well as helper funct
 - `resamples.py`: functions to change the distribution over the timesteps during training (not used by our model).
 - `respace.py`: functions to respace the timesteps (not used by our model).
 
-### scripts
+#### scripts
 
 This folder contains the different scripts to train and sample from our method. A shell file is associated with each python script which requires many arguments. In particular, it consists of the following files (sorted by relevance):
 
@@ -37,6 +49,6 @@ This folder contains the different scripts to train and sample from our method. 
 - `clip_embeddings.py`: create the CLIP embeddings for a dataset.
 - `handling_images.py`: create a figure from a set of images.
 
-### evaluations
+#### evaluations
 
 This folder contains the methods to evaluate our method. Another `README.md` explaining the procedure to replicate the evaluations is available in this folder. 

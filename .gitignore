@@ -7,3 +7,4 @@ openai_models
 robin_scripts/playground.py
 evaluations/samples
 evaluations/classify_image_graph_def.pb
+models/
