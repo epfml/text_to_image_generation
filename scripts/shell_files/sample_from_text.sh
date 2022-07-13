@@ -5,7 +5,7 @@ python sample_from_text.py \
     --samples_per_caption 10 \
     --batch_size 20 \
     --use_ddim False \
-    --model_path ../log/diffusion/final_2/ema_0.9999_500000.pt \
+    --model_path ../models/image_decoder.pt \
     --out_path .. \
     --guidance_scale 6 \
     --dynamic_thresholding True \
@@ -33,7 +33,7 @@ python sample_from_text.py \
     --predict_xstart False \
     --rescale_timesteps False \
     --rescale_learned_sigmas False \
-    --mlp_checkpoint ../log/MLP/final/model_ES.pt \
+    --mlp_checkpoint ../models/CLIP_translator.pt \
     #--image_guidance_path ../images/other/algebra/tree_64.png \
     #--image_guidance_scale 0.005 \
 

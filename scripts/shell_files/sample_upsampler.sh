@@ -5,8 +5,8 @@ python sample_upsampler.py \
     --num_samples 10 \
     --batch_size 10 \
     --use_ddim False \
-    --base_samples ../images/pipeline/final_plate/samples_4x64x64x3.npz \
-    --model_path ../openai_models/64_256_upsampler.pt \
+    --base_samples ../samples_1x64x64x3.npz \
+    --model_path ../models/upsampler.pt \
     --out_path .. \
     --num_channels 192 \
     --num_res_blocks 2 \
