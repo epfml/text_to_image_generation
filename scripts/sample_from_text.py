@@ -107,6 +107,8 @@ def main():
 
     logger.log("sampling...")
 
+    if len(img_embs.shape) == 1:
+        img_embs = img_embs[None, :]
     img_embs = th.repeat_interleave(img_embs, args.samples_per_caption, dim=0)
 
     all_images = []

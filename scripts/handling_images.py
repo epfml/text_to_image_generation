@@ -9,8 +9,6 @@ columns = 3
 rows = 4
 for i in range(1, columns*rows +1):
     fig.add_subplot(rows, columns, i)
-    # img = mpimg.imread(f'../evaluations/samples/images256/image_{indices[i - 1]}.png')
-    # img = mpimg.imread(f'../images/pipeline256/coco_50/sample_{indices[i - 1]}.png')
     img = mpimg.imread(f'../images/coco/img_emb/test_2_256/sample_{indices[i - 1]}.png')
 
     plt.axis('off')
