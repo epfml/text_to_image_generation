@@ -9,9 +9,9 @@ In this project, we **implement a text-to-image generative model** based on DALL
 
 1. Download the checkpoints of the image decoder, CLIP translator, and upsampler [here](https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing). Then put the checkpoints into the folder *models*.
 
-2. Write the the image descriptions you want to generate in `captions.txt`.
+2. Write a textual description of the images you want to generate in `captions.txt`.
 
-3. Run the shell script to generate images, i.e., `sh sample_from_text.sh`.
+3. Run the shell script to generate the images, i.e., `sh sample_from_text.sh`.
 
 4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.pt`.
 
