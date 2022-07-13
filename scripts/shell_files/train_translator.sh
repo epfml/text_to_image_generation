@@ -1,7 +1,7 @@
 cd ..
 
 python train_translator.py \
-    --model_name "final_7" \
+    --model_name "final" \
     --log_interval 500 \
     --save_interval 200000 \
     --epochs 6 \
