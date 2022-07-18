@@ -1,11 +1,10 @@
 cd ..
 
 python sample_upsampler.py \
-    --clip_denoised True \
+    --base_samples ../samples_10x64x64x3.npz \
     --num_samples 10 \
     --batch_size 10 \
     --use_ddim False \
-    --base_samples ../samples_1x64x64x3.npz \
     --model_path ../models/upsampler.pt \
     --out_path .. \
     --num_channels 192 \
@@ -30,6 +29,7 @@ python sample_upsampler.py \
     --large_size 256 \
     --small_size 64 \
     --label 436 \
+    --clip_denoised True \
 #    --use_checkpoint USE_CHECKPOINT \
 #    --timestep_respacing TIMESTEP_RESPACING \
 
