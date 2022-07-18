@@ -13,7 +13,7 @@ In this project, we **implement a text-to-image generative model** based on DALL
 
 3. Run the shell script to generate the images, i.e., `sh sample_from_text.sh`. Feel free to modify the number of samples generated per caption.
 
-4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.sh`. Specify the name of the `npz` file containing the 64x64 images in the script.
+4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.sh`. You need to specify the name of the `npz` file containing the 64x64 images with the argument `base_samples` in the script.
 
 ### Code
 
