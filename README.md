@@ -7,13 +7,13 @@ In this project, we **implement a text-to-image generative model** based on DALL
 
 ### How to generate images from text?
 
-1. Download the checkpoints of the image decoder, CLIP translator, and upsampler [here](https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing). Then put the checkpoints into the folder *models*.
+1. Download the checkpoints of the image decoder, CLIP translator, and upsampler [here](https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing). Then put the checkpoints into the folder named *models*.
 
-2. Write a textual description of the images you want to generate in `captions.txt`.
+2. Write a textual description of the images you want to generate in `captions.txt`. One caption per line.
 
-3. Run the shell script to generate the images, i.e., `sh sample_from_text.sh`.
+3. Run the shell script to generate the images, i.e., `sh sample_from_text.sh`. Feel free to modify the number of samples generated per caption.
 
-4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.pt`.
+4. (Optional) Increase the resolution with the upsampler using the shell script `sample_upsampler.sh`. Specify the name of the `npz` file containing the 64x64 images in the script.
 
 ### Code
 
