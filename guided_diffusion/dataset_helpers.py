@@ -9,10 +9,10 @@ from torch.utils.data import Dataset
 
 
 # Embeddings data paths
-EMBEDDING_IMAGE_MEAN_PATH = "../../../../mlodata1/roazbind/embeddings_stats/image_embedding_mean.npy"
-EMBEDDING_IMAGE_STD_PATH = "../../../../mlodata1/roazbind/embeddings_stats/image_embedding_std.npy"
-EMBEDDING_CAPTION_MEAN_PATH = "../../../../mlodata1/roazbind/embeddings_stats/caption_embedding_mean.npy"
-EMBEDDING_CAPTION_STD_PATH = "../../../../mlodata1/roazbind/embeddings_stats/caption_embedding_std.npy"
+EMBEDDING_IMAGE_MEAN_PATH = "../models/image_embedding_mean.npy"
+EMBEDDING_IMAGE_STD_PATH = "../models/image_embedding_std.npy"
+EMBEDDING_CAPTION_MEAN_PATH = "../models/caption_embedding_mean.npy"
+EMBEDDING_CAPTION_STD_PATH = "../models/caption_embedding_std.npy"
 
 EMBEDDING_IMAGE_COCOVAL_PATH = "../../../../mlodata1/roazbind/coco/val_embedding_img.npy"
 EMBEDDING_IMAGE_IMAGENET_BATCH_PATH = lambda i : \
