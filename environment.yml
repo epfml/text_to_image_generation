@@ -159,7 +159,7 @@ dependencies:
     - autopage==0.5.0
     - blessings==1.7
     - cliff==3.10.1
-    - clip==1.0
+    - git+https://github.com/openai/CLIP.git==1.0
     - cmaes==0.8.2
     - cmd2==2.4.1
     - colorlog==6.6.0
