@@ -7,7 +7,7 @@ In this project, we **implement a text-to-image generative model** based on DALL
 
 ### How to generate images from text?
 
-1. Download the checkpoints of the image decoder, CLIP translator, and upsampler [here](https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing). Then put the checkpoints into the folder named *models*.
+1. Download the checkpoints of the image decoder, CLIP translator, and upsampler, as well as the means and standard deviations of the embeddings [here](https://drive.google.com/drive/folders/1NEYwdgRLBx-nRvw66Td8cxr4nS5yTkgq?usp=sharing). Then put all these files into the folder named *models*.
 
 2. Write a textual description of the images you want to generate in `captions.txt`. One caption per line.
 
